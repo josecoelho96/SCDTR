@@ -1,2 +1,2 @@
-# SDCTR
+# SCDTR
 Smart luminaire for offices
