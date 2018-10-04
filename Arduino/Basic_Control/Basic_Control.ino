@@ -47,10 +47,14 @@ void loop() {
   Serial.print("LDR [Luminance]: ");
   Serial.print(luminance);
   Serial.println(" lux");
-  calculateBrightness(luminance, digitalRead(button));
-   Serial.print("State [Ocupied]: ");
-   Serial.println(digitalRead(button));
-  delay(1000);
+  brightness = map(calculateBrightness(luminance, digitalRead(button)),0,100,0,255);
+  analogWrite(luminaire,brightness);
+  Serial.print("Output [%]: ");
+  Serial.print(calculateBrightness(luminance, digitalRead(button)));
+  Serial.println("%");
+  Serial.print("State [Ocupied]: ");
+  Serial.println(digitalRead(button));
+  //delay(1000);
 }
 
 int calculateLux(int ldrReading) {
@@ -68,19 +72,28 @@ int calculateLux(int ldrReading) {
 
 int calculateBrightness(float lux, bool ocupation){
   int output;
+  int p = 1;//Proportinal
   int luxError;
   if (ocupation == true){
-    luxError=abs(lux-highLux);
+    luxError=highLux-lux;
   } else {
-    luxError=abs(lux-lowLux);
+    luxError=lowLux-lux;
   }
+  
   if (brightness!=0){
-     output = brightness * (1+(luxError/100));
+     output = brightness * (1+(luxError/100)*p);
 
+  } else if(luxError<0){
+    output = 0;
   } else {
-    output = 10 * (1+(luxError/100));
+    output = 1 * (1+(luxError/100));
   }
 
+  if(output>100){
+    output=100;
+  } else if(output<0){
+    output=0;
+  }
   //implementar um controlador que altera o intenssidade do led conforme a iluminaçao
   return output;
 }
