@@ -7,6 +7,7 @@
 #include <math.h> 
 
 int luminaire = 9;
+int button = 8;//NEW
 int sensor = A0;
 int brightness;
 float lastLux;
@@ -21,6 +22,8 @@ float luminance = 0;
 void setup() {
   Serial.begin(9600);
   pinMode(luminaire, OUTPUT);
+  pinMode(button, OUTPUT);//NEW
+  digitalWrite(button,HIGH);//NEW
   pinMode(sensor, INPUT);
   // counter = 0;
   // acc_value = 0;
@@ -44,7 +47,9 @@ void loop() {
   Serial.print("LDR [Luminance]: ");
   Serial.print(luminance);
   Serial.println(" lux");
-
+  calculateBrightness(luminance, digitalRead(button));
+   Serial.print("State [Ocupied]: ");
+   Serial.println(digitalRead(button));
   delay(1000);
 }
 
