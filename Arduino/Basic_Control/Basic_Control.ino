@@ -2,8 +2,9 @@
 //SCDTR 1S 2018/19
 //Tecnico Lisboa
 //David Teles-Jose Coelho-Afonso Soares
-//ALL RIGHTS RESERVED
+//ALL RIGHTS RESERVED - LMAO
 
+#include <math.h> 
 
 int luminaire = 9;
 int sensor = A0;
@@ -11,48 +12,40 @@ int brightness;
 float lastLux;
 int lowLux=200;
 int highLux=500;
-int counter = 0;
-float acc_value = 0;
-
+float sensorVoltage = 0;
+// int counter = 0;
+// float acc_value = 0;
+float sensorResistance = 0;
+float luminance = 0;
 
 void setup() {
   Serial.begin(9600);
   pinMode(luminaire, OUTPUT);
   pinMode(sensor, INPUT);
-  counter = 0;
-  acc_value = 0;
+  // counter = 0;
+  // acc_value = 0;
 }
 
 void loop() {
   int sensorValue = analogRead(sensor);
-  Serial.print("LDR raw output: ");
+  Serial.print("LDR [ADC value]: ");
   Serial.println(sensorValue);
-  acc_value += sensorValue;
-  counter++;
-  Serial.print("LDR raw avg output: ");
-  Serial.println(acc_value / counter);
+  sensorVoltage = (5*sensorValue)/1023.0;
+  Serial.print("LDR [Voltage at terminal]: ");
+  Serial.print(sensorVoltage);
+  Serial.println(" V");
+  sensorResistance = (5/sensorVoltage)*10000 - 10000;
+  Serial.print("LDR [Resistance]: ");
+  Serial.print(sensorResistance);
+  Serial.println(" Ohm");
+  float b = 1.774073098;
+  float m = -0.6570013422;
+  luminance = pow(10, (log10(sensorResistance/1000)-b)/m);
+  Serial.print("LDR [Luminance]: ");
+  Serial.print(luminance);
+  Serial.println(" lux");
 
-  // TELES
-  // 833 (adc) - 229 lux
-  // 880 (adc) - 261 lux
-  // 940 (adc) - 305 lux
-  // 383 (adc) - X
-
-
-  // COELHADAS
-  // 360 (adc) - 5 lux
-  // 830 (adc) - 264 lux
-  // 890 (adc) - 1320 lux
-
-/*
-  Serial.print("Lux:");
-  Serial.println(lux);
-  brightness = lux; //100;//calculateBrightness(lux, true);
-  analogWrite(luminaire, map(brightness, 0, 100, 255, 0));
-  Serial.print("Modulated Output: ");
-  Serial.println(brightness);
- */
-  delay(500);
+  delay(1000);
 }
 
 int calculateLux(int ldrReading) {
