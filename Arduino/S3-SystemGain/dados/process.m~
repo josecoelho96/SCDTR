@@ -1,0 +1,15 @@
+filename = 't1.tsv';
+fileID = fopen(filename, 'r', 'n', 'UTF-8');
+
+line = fgetl(fileID);
+while ischar(line)
+
+    if contains(line, "LED: ")
+        disp(line)
+    else
+        A = sscanf(line, "%d\t%d")
+        % outras cenas
+    end
+    line = fgetl(fileID);   
+end
+fclose(fileID);

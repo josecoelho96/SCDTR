@@ -1,0 +1,4 @@
+- **t1:** ADC prescaled to clk/32, no fast pwm
+- **t2:** ADC prescaled to clk/32, fast pwm (prescaled to clk/1)
+- **t3:** ADC prescaled to clk/64, fast pwm (prescaled to clk/1)
+- **t4:** ADC prescaled to clk/128, fast pwm (prescaled to clk/1)
