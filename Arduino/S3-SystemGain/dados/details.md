@@ -2,3 +2,4 @@
 - **t2:** ADC prescaled to clk/32, fast pwm (prescaled to clk/1)
 - **t3:** ADC prescaled to clk/64, fast pwm (prescaled to clk/1)
 - **t4:** ADC prescaled to clk/128, fast pwm (prescaled to clk/1)
+- **t5:** t4 on the other arduino
