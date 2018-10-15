@@ -1,100 +1,133 @@
-//Arduino code for smart luminaire
-//SCDTR 1S 2018/19
-//Tecnico Lisboa
-//David Teles-Jose Coelho-Afonso Soares
-//ALL RIGHTS RESERVED - LMAO
+// Arduino code for smart luminaire
+// SCDTR 1S 2018/19
+// Tecnico Lisboa
+// David Teles - Jose Coelho - Afonso Soares
+// ALL RIGHTS RESERVED
 
-#include <math.h> 
+// Config/parameters
+// #define DEBUG
+#define LOOP_INFO
 
-int luminaire = 9;
-int button = 8;//NEW
-int sensor = A0;
-int brightness;
+#define LOW_LUX 200
+#define HIGH_LUX 500
+
+const int Vref = 5; // ADC referece voltage
+const int R1ref = 9850; // R1 measured value
+const long int maxResistanceLdr = 1000000; //1MOhm, defined by datasheet
+const float mLdr = -0.652; // LDR characteristic curve: m parameter
+const float bLdr = 1.76; // LDR characteristic curve: b parameter
+
+
+// Define pins
+const int luminaire = 3;
+const int presenceSensor = 8;
+const int lightSensor = A0;
+
+float measuredLux;
+bool occupied;
+
+int brightness; // Current led brightness
+/*
 float lastLux;
-int lowLux=200;
-int highLux=500;
-float sensorVoltage = 0;
-// int counter = 0;
-// float acc_value = 0;
-float sensorResistance = 0;
-float luminance = 0;
-
+*/
 void setup() {
-  Serial.begin(9600);
+  Serial.begin(2000000);
+
+  // Define IO
   pinMode(luminaire, OUTPUT);
-  pinMode(button, OUTPUT);//NEW
-  digitalWrite(button,HIGH);//NEW
-  pinMode(sensor, INPUT);
-  // counter = 0;
-  // acc_value = 0;
+  pinMode(lightSensor, INPUT);
+  pinMode(presenceSensor, INPUT_PULLUP);
 }
 
 void loop() {
-  int sensorValue = analogRead(sensor);
-  Serial.print("LDR [ADC value]: ");
-  Serial.println(sensorValue);
-  sensorVoltage = (5*sensorValue)/1023.0;
-  Serial.print("LDR [Voltage at terminal]: ");
-  Serial.print(sensorVoltage);
-  Serial.println(" V");
-  sensorResistance = (5/sensorVoltage)*10000 - 10000;
-  Serial.print("LDR [Resistance]: ");
-  Serial.print(sensorResistance);
-  Serial.println(" Ohm");
-  float b = 1.774073098;
-  float m = -0.6570013422;
-  luminance = pow(10, (log10(sensorResistance/1000)-b)/m);
-  Serial.print("LDR [Luminance]: ");
-  Serial.print(luminance);
-  Serial.println(" lux");
-  brightness = map(calculateBrightness(luminance, digitalRead(button)),0,100,0,255);
-  analogWrite(luminaire,brightness);
-  Serial.print("Output [%]: ");
-  Serial.print(calculateBrightness(luminance, digitalRead(button)));
-  Serial.println("%");
-  Serial.print("State [Ocupied]: ");
-  Serial.println(digitalRead(button));
-  //delay(1000);
+
+  // get inputs
+  measuredLux = getLDRLux();
+  // negate to use internal pull up resistors
+  occupied = !digitalRead(presenceSensor);
+
+  // calculate new brightness for the LED
+  brightness = updateLEDBrightness(measuredLux, occupied);
+
+  #ifdef LOOP_INFO
+    Serial.print("Luminance [Lux]: ");
+    Serial.println(measuredLux);
+    Serial.print("Occupied [Boolean]: ");
+    Serial.println(occupied);
+    Serial.print("Brightness [%]: ");
+    Serial.println(brightness);
+  #endif
+
+  delay(1000);
 }
 
-int calculateLux(int ldrReading) {
-  /* Values according to datasheet
-   * 0 lux: 1 MOhm
-   * 1 lux : 60 kOhm
-   * 10 lux : 15 kOhm
-   * 100 lux : 3 kOhm
-   */
-  
-  // float lux = map(sensorValue, 200, 1016, 0, 100); //Valores nao confirmados pelo datasheet nem calibrados
-  // return lux;
-  
-}
 
-int calculateBrightness(float lux, bool ocupation){
-  int output;
-  int p = 1;//Proportinal
-  int luxError;
-  if (ocupation == true){
-    luxError=highLux-lux;
+float getLDRLux() {
+  int adcLdr;
+  float voltageLdr;
+  float resistanceLdr;
+  float luxLdr;
+
+  adcLdr = analogRead(lightSensor);
+  #ifdef DEBUG
+    Serial.print("LDR [ADC value]: ");
+    Serial.println(adcLdr);
+  #endif
+
+  voltageLdr = (Vref*adcLdr)/1023.0;
+  #ifdef DEBUG
+    Serial.print("LDR [Voltage at terminal]: ");
+    Serial.println(voltageLdr);
+  #endif
+
+  if (voltageLdr == 0) {
+    resistanceLdr = maxResistanceLdr;
   } else {
-    luxError=lowLux-lux;
+    resistanceLdr = R1ref*(Vref/voltageLdr - 1);
   }
-  
-  if (brightness!=0){
-     output = brightness * (1+(luxError/100)*p);
 
-  } else if(luxError<0){
+  #ifdef DEBUG
+    Serial.print("LDR [Resistance]: ");
+    Serial.println(resistanceLdr);
+  #endif
+
+  // Resistance is converted to kOhm
+  luxLdr = pow(10, (log10(resistanceLdr/1000) - bLdr)/mLdr);
+
+  #ifdef DEBUG
+    Serial.print("LDR [Luminance]: ");
+    Serial.println(luxLdr);
+  #endif
+
+  return luxLdr;
+}
+
+
+int updateLEDBrightness(float currentLux, bool occupied) {
+  float p = 1.0; // Proportional
+  int luxError;
+  int output;
+
+  if (occupied == true) {
+    luxError = HIGH_LUX - currentLux;
+  } else {
+    luxError = LOW_LUX - currentLux;
+  }
+
+  if (brightness != 0) {
+     output = brightness * (1+(luxError/100)*p);
+  } else if (luxError < 0){
     output = 0;
   } else {
     output = 1 * (1+(luxError/100));
   }
 
-  if(output>100){
-    output=100;
-  } else if(output<0){
-    output=0;
+  if (output > 100) {
+    output = 100;
+  } else if (output < 0) {
+    output = 0;
   }
-  //implementar um controlador que altera o intenssidade do led conforme a iluminaçao
+
+  analogWrite(luminaire, map(output, 0, 100, 0, 255));
   return output;
 }
-
