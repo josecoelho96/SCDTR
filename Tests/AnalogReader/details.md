@@ -26,7 +26,7 @@ Outputs samples as soons as data is read.
 Outputs samples into memory. Memory is dumped into Serial when full.
 
 **Results:**
-- Avg 467 us per sample -> 50 kS/s
+- Avg 20 us per sample -> 50 kS/s
 - PWM freq: 488 Hz (Nominal 490.20 Hz)
 
 ## V5 - Increased sample frequency with memory and interrupts
