@@ -8,8 +8,8 @@
 // #define DEBUG
 #define LOOP_INFO
 
-#define LOW_LUX 200
-#define HIGH_LUX 500
+#define LOW_LUX 100
+#define HIGH_LUX 200
 
 const int Vref = 5; // ADC referece voltage
 const int R1ref = 9850; // R1 measured value
@@ -17,6 +17,15 @@ const long int maxResistanceLdr = 1000000; //1MOhm, defined by datasheet
 const float mLdr = -0.652; // LDR characteristic curve: m parameter
 const float bLdr = 1.76; // LDR characteristic curve: b parameter
 
+const double kp = 100;//Proportinal
+const double ki = 0.5;//Integral
+const double kd = 0.0;//Derivative
+
+double iterm = 0;
+double dterm = 0;
+double pterm = 0;
+float lastlux = 0;
+double lastoutput = 0;
 
 // Define pins
 const int luminaire = 3;
@@ -27,9 +36,8 @@ float measuredLux;
 bool occupied;
 
 int brightness; // Current led brightness
-/*
-float lastLux;
-*/
+
+
 void setup() {
   Serial.begin(2000000);
 
@@ -56,6 +64,12 @@ void loop() {
     Serial.println(occupied);
     Serial.print("Brightness [%]: ");
     Serial.println(brightness);
+    Serial.print("pTerm]: ");
+    Serial.println(pterm);
+    Serial.print("iTerm: ");
+    Serial.println(iterm);
+    Serial.print("dTerm: ");
+    Serial.println(dterm);
   #endif
 
   delay(1000);
@@ -103,31 +117,58 @@ float getLDRLux() {
 }
 
 
-int updateLEDBrightness(float currentLux, bool occupied) {
-  float p = 1.0; // Proportional
-  int luxError;
-  int output;
 
-  if (occupied == true) {
-    luxError = HIGH_LUX - currentLux;
+
+float updateLEDBrightness(float currentLux, bool occupied) {
+  
+  double error;
+  double output;
+
+  if (occupied == true){
+    error=(HIGH_LUX-currentLux)/HIGH_LUX;
   } else {
-    luxError = LOW_LUX - currentLux;
+    error=(LOW_LUX-currentLux)/LOW_LUX;
   }
 
-  if (brightness != 0) {
-     output = brightness * (1+(luxError/100)*p);
-  } else if (luxError < 0){
-    output = 0;
+
+  //Proportinal Term calculation
+  pterm = error * kp;
+  
+  //Integral Term calculation
+  iterm += (error*ki);
+  
+  if(iterm>100){
+    iterm=100;
+  } else if(iterm<-100){
+    iterm=-100;
+  } 
+
+
+  //Derivative term calculation
+  dterm = kd * (lastlux-currentLux);
+  
+  if (occupied == true){
+    
+    output = HIGH_LUX * (1+pterm+iterm+dterm);
+  
   } else {
-    output = 1 * (1+(luxError/100));
+    output = LOW_LUX * (1+pterm+iterm+dterm);
+    
   }
 
-  if (output > 100) {
-    output = 100;
-  } else if (output < 0) {
-    output = 0;
-  }
-
-  analogWrite(luminaire, map(output, 0, 100, 0, 255));
-  return output;
+  output = luxToPWM(output);
+  
+  analogWrite(luminaire,output);
+  lastlux = currentLux;
+  return map(output,0,255,0,100);
 }
+
+
+float luxToPWM(double lux){
+  float pwm;
+  pwm = lux/2;
+  return pwm;
+}
+
+
+
