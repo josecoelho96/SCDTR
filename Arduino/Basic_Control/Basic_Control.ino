@@ -8,8 +8,8 @@
 // #define DEBUG
 #define LOOP_INFO
 
-#define LOW_LUX 100
-#define HIGH_LUX 200
+#define LOW_LUX 50
+#define HIGH_LUX 120
 
 const int Vref = 5; // ADC referece voltage
 const int R1ref = 9850; // R1 measured value
@@ -17,14 +17,22 @@ const long int maxResistanceLdr = 1000000; //1MOhm, defined by datasheet
 const float mLdr = -0.652; // LDR characteristic curve: m parameter
 const float bLdr = 1.76; // LDR characteristic curve: b parameter
 
-const double kp = 100;//Proportinal
-const double ki = 0.5;//Integral
+
+
+
+const double tau = 1;
+const double a = 1/tau;
+const double b = 1;
+const double T = 1;
+const double kp = 1;//Proportinal
+const double ki = 0.1;//Integral
 const double kd = 0.0;//Derivative
 
 double iterm = 0;
 double dterm = 0;
 double pterm = 0;
 float lastlux = 0;
+double lasterror = 0;
 double lastoutput = 0;
 
 // Define pins
@@ -120,46 +128,45 @@ float getLDRLux() {
 
 
 float updateLEDBrightness(float currentLux, bool occupied) {
-  
+  int ref;
   double error;
   double output;
 
   if (occupied == true){
-    error=(HIGH_LUX-currentLux)/HIGH_LUX;
+    ref = HIGH_LUX;
   } else {
-    error=(LOW_LUX-currentLux)/LOW_LUX;
+    ref = LOW_LUX;
   }
 
 
+  error=(ref-currentLux);
+  
   //Proportinal Term calculation
-  pterm = error * kp;
+  pterm = ref * kp * b - kp * currentLux;
   
   //Integral Term calculation
-  iterm += (error*ki);
+  iterm += ((error + lasterror)* ki * kp)*(T/2);
   
-  if(iterm>100){
-    iterm=100;
-  } else if(iterm<-100){
-    iterm=-100;
-  } 
+//  if(iterm>100){
+//    iterm=100;
+//  } else if(iterm<-100){
+//    iterm=-100;
+//  } 
 
 
   //Derivative term calculation
-  dterm = kd * (lastlux-currentLux);
-  
-  if (occupied == true){
-    
-    output = HIGH_LUX * (1+pterm+iterm+dterm);
-  
-  } else {
-    output = LOW_LUX * (1+pterm+iterm+dterm);
-    
-  }
+  dterm = kd/(kd+a*T) * lastlux - kp*kd*a/(kd+a*T)*(currentLux-lastlux);
+ 
 
+  output = (pterm+iterm+dterm);
+  
+
+  lastoutput = output;
   output = luxToPWM(output);
   
   analogWrite(luminaire,output);
   lastlux = currentLux;
+  lasterror = error;
   return map(output,0,255,0,100);
 }
 
