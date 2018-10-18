@@ -6,7 +6,7 @@
 
 // Config/parameters
 // #define DEBUG
-#define LOOP_INFO
+//#define LOOP_INFO
 
 #define LOW_LUX 50
 #define HIGH_LUX 120
@@ -25,7 +25,7 @@ const double a = 1/tau;
 const double b = 1;
 const double T = 1;
 const double kp = 1;//Proportinal
-const double ki = 0.1;//Integral
+const double ki = 0.5;//Integral
 const double kd = 0.0;//Derivative
 
 double iterm = 0;
@@ -38,7 +38,7 @@ double lastoutput = 0;
 // Define pins
 const int luminaire = 3;
 const int presenceSensor = 8;
-const int lightSensor = A0;
+const int lightSensor = A1;
 
 float measuredLux;
 bool occupied;
@@ -48,11 +48,23 @@ int brightness; // Current led brightness
 
 void setup() {
   Serial.begin(2000000);
-
   // Define IO
   pinMode(luminaire, OUTPUT);
   pinMode(lightSensor, INPUT);
   pinMode(presenceSensor, INPUT_PULLUP);
+  
+  // Enable faster PWM on Pin 3 (and 11);
+  // Reset TCCR2B register Clock Select (CS) bits
+  // TC2 - Timer/Counter1 (8 bits)
+  // TCCR2B - TC2 Control Register B
+  TCCR2B &= B11111000;
+  // Setting no prescaler: 001
+  // TCCR2B |= (1 << CS22);
+  // TCCR2B |= (1 << CS21);
+  TCCR2B |= (1 << CS20);
+
+
+  
 }
 
 void loop() {
@@ -78,9 +90,10 @@ void loop() {
     Serial.println(iterm);
     Serial.print("dTerm: ");
     Serial.println(dterm);
+    delay(1000);
   #endif
 
-  delay(1000);
+  
 }
 
 
@@ -159,7 +172,9 @@ float updateLEDBrightness(float currentLux, bool occupied) {
  
 
   output = (pterm+iterm+dterm);
-  
+  if (output <0){
+    output = 0;
+  }
 
   lastoutput = output;
   output = luxToPWM(output);
@@ -173,7 +188,12 @@ float updateLEDBrightness(float currentLux, bool occupied) {
 
 float luxToPWM(double lux){
   float pwm;
-  pwm = lux/2;
+  pwm = lux;
+  if(pwm > 255){
+    pwm = 255;
+  } else if(pwm < 0){
+    pwm = 0;
+  }
   return pwm;
 }
 
