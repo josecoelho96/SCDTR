@@ -6,10 +6,10 @@
 
 // Config/parameters
 // #define DEBUG
-#define LOOP_INFO
+//#define LOOP_INFO
 
-#define LOW_LUX 200
-#define HIGH_LUX 500
+#define LOW_LUX 50
+#define HIGH_LUX 120
 
 const int Vref = 5; // ADC referece voltage
 const int R1ref = 9850; // R1 measured value
@@ -18,25 +18,53 @@ const float mLdr = -0.652; // LDR characteristic curve: m parameter
 const float bLdr = 1.76; // LDR characteristic curve: b parameter
 
 
+
+
+const double tau = 1;
+const double a = 1/tau;
+const double b = 1;
+const double T = 1;
+const double kp = 1;//Proportinal
+const double ki = 0.5;//Integral
+const double kd = 0.0;//Derivative
+
+double iterm = 0;
+double dterm = 0;
+double pterm = 0;
+float lastlux = 0;
+double lasterror = 0;
+double lastoutput = 0;
+
 // Define pins
 const int luminaire = 3;
 const int presenceSensor = 8;
-const int lightSensor = A0;
+const int lightSensor = A1;
 
 float measuredLux;
 bool occupied;
 
 int brightness; // Current led brightness
-/*
-float lastLux;
-*/
+
+
 void setup() {
   Serial.begin(2000000);
-
   // Define IO
   pinMode(luminaire, OUTPUT);
   pinMode(lightSensor, INPUT);
   pinMode(presenceSensor, INPUT_PULLUP);
+  
+  // Enable faster PWM on Pin 3 (and 11);
+  // Reset TCCR2B register Clock Select (CS) bits
+  // TC2 - Timer/Counter1 (8 bits)
+  // TCCR2B - TC2 Control Register B
+  TCCR2B &= B11111000;
+  // Setting no prescaler: 001
+  // TCCR2B |= (1 << CS22);
+  // TCCR2B |= (1 << CS21);
+  TCCR2B |= (1 << CS20);
+
+
+  
 }
 
 void loop() {
@@ -56,9 +84,16 @@ void loop() {
     Serial.println(occupied);
     Serial.print("Brightness [%]: ");
     Serial.println(brightness);
+    Serial.print("pTerm]: ");
+    Serial.println(pterm);
+    Serial.print("iTerm: ");
+    Serial.println(iterm);
+    Serial.print("dTerm: ");
+    Serial.println(dterm);
+    delay(1000);
   #endif
 
-  delay(1000);
+  
 }
 
 
@@ -103,31 +138,64 @@ float getLDRLux() {
 }
 
 
-int updateLEDBrightness(float currentLux, bool occupied) {
-  float p = 1.0; // Proportional
-  int luxError;
-  int output;
 
-  if (occupied == true) {
-    luxError = HIGH_LUX - currentLux;
+
+float updateLEDBrightness(float currentLux, bool occupied) {
+  int ref;
+  double error;
+  double output;
+
+  if (occupied == true){
+    ref = HIGH_LUX;
   } else {
-    luxError = LOW_LUX - currentLux;
+    ref = LOW_LUX;
   }
 
-  if (brightness != 0) {
-     output = brightness * (1+(luxError/100)*p);
-  } else if (luxError < 0){
+
+  error=(ref-currentLux);
+  
+  //Proportinal Term calculation
+  pterm = ref * kp * b - kp * currentLux;
+  
+  //Integral Term calculation
+  iterm += ((error + lasterror)* ki * kp)*(T/2);
+  
+//  if(iterm>100){
+//    iterm=100;
+//  } else if(iterm<-100){
+//    iterm=-100;
+//  } 
+
+
+  //Derivative term calculation
+  dterm = kd/(kd+a*T) * lastlux - kp*kd*a/(kd+a*T)*(currentLux-lastlux);
+ 
+
+  output = (pterm+iterm+dterm);
+  if (output <0){
     output = 0;
-  } else {
-    output = 1 * (1+(luxError/100));
   }
 
-  if (output > 100) {
-    output = 100;
-  } else if (output < 0) {
-    output = 0;
-  }
-
-  analogWrite(luminaire, map(output, 0, 100, 0, 255));
-  return output;
+  lastoutput = output;
+  output = luxToPWM(output);
+  
+  analogWrite(luminaire,output);
+  lastlux = currentLux;
+  lasterror = error;
+  return map(output,0,255,0,100);
 }
+
+
+float luxToPWM(double lux){
+  float pwm;
+  pwm = lux;
+  if(pwm > 255){
+    pwm = 255;
+  } else if(pwm < 0){
+    pwm = 0;
+  }
+  return pwm;
+}
+
+
+
