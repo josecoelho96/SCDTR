@@ -1,7 +1,9 @@
 const int sensor = A0;
 const int luminaire = 3;
-const int brightnessSteps = 13; // 0 .. 13
-const int ledBrightnessLevels[] = {0, 20, 40, 60, 80, 100, 120, 140, 160, 180, 200, 220, 240, 255};
+// const int brightnessSteps = 13; // 0 .. 13
+// const int ledBrightnessLevels[] = {0, 20, 40, 60, 80, 100, 120, 140, 160, 180, 200, 220, 240, 255};
+const int brightnessSteps = 5; // 0 .. 5
+const int ledBrightnessLevels[] = {0, 50, 100, 150, 200, 255};
 int currentBrightnessLevel = 0;
 int levelInc = 1;
 
@@ -18,7 +20,7 @@ void setup() {
   // TCCR1B - TC1 Control Register B
   TCCR1A = B00000000;
   TCCR1B = B00000000;
-  
+
   // Changing mode of operation to CTC Mode (Clear Timer on Compare Match)
   // WGM - Waveform Generation Mode
   TCCR1B |= (1 << WGM12);
@@ -37,8 +39,9 @@ void setup() {
   // Interruptions will occur at each (OCR1A+1)*T seconds. (T = 64 us)
   // T_interrupt = (OCR+1)*T
   // f_interrupt = 16MHz /((OCR+1)*1024)
-  OCR1A = 15624; // T = 1s | f = 1 Hz
-  
+  // OCR1A = 15624; // T = 1s | f = 1 Hz
+  OCR1A = 31249; // T = 2s | f = 0.5 Hz
+
   // Configure ADC to run in free running mode
   // Resetting ADCSRA, ADCSRB and ADMUX registers
   // ADCSRA - ADC Control and Status Register A
@@ -50,8 +53,7 @@ void setup() {
 
   // REFSn: Reference Selection [n = 1:0]
   // Set reference voltage to VCC : 01
-  ADMUX |= (1 << REFS0); 
-
+  ADMUX |= (1 << REFS0);
   /*
   // Setting prescaler (clk/32, f = 38.5 kHz because 13 cycles per conversion)
   // ADPS - ADC prescaler select
@@ -71,7 +73,7 @@ void setup() {
   ADCSRA |= (1 << ADPS2);
   ADCSRA |= (1 << ADPS1);
   ADCSRA |= (1 << ADPS0);
-  
+
   // ADATE - ADC Auto Trigger Enable
   ADCSRA |= (1 << ADATE);
   // ADIE - ADC Interrupt Enable
@@ -105,7 +107,6 @@ void loop() {
 // Timer/Counter1 Compare Match A
 ISR(TIMER1_COMPA_vect) {
   // Update LED Brightness (called 1 time per second)
- 
   Serial.print("LED: ");
   Serial.print(micros());
   Serial.print("\t");
