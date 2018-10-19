@@ -12,7 +12,8 @@
 #define HIGH_LUX 120
 #define A_LUXTOPWM 1
 #define B_LUXTOPWM 0
-
+#define WINDUPMAX 500
+#define DEADZONE 2
 
 
 
@@ -26,9 +27,9 @@ const float bLdr = 1.76; // LDR characteristic curve: b parameter
 
 //Contants used by the PID controle
 const double tau = 1;
-const double a = 1/tau;
+const double a = 10;
 const double b = 1;
-const double T = 1;
+const double T = 0.005; //2Khz Period
 const double kp = 1;//Proportinal
 const double ki = 0.5;//Integral
 const double kd = 0.0;//Derivative
@@ -59,7 +60,10 @@ void setup() {
   pinMode(luminaire, OUTPUT);
   pinMode(lightSensor, INPUT);
   pinMode(presenceSensor, INPUT_PULLUP);
-  occupied = !digitalRead(presenceSensor);
+
+  attachInterrupt(digitalPinToInterrupt(presenceSensor),stateChange,CHANGE);
+  
+  noInterrupts(); 
   // Enable faster PWM on Pin 3 (and 11);
   // Reset TCCR2B register Clock Select (CS) bits
   // TC2 - Timer/Counter1 (8 bits)
@@ -71,17 +75,37 @@ void setup() {
   TCCR2B |= (1 << CS20);
 
 
-  
+  //Setup Timer for feedback loop (2Khz)
+  // Configure Timers/Interrupts
+  // Resetting TCCR1A and TCCR1B registers.
+  // TC1 - Timer/Counter1 (16 bits)
+  // TCCR1A - TC1 Control Register A
+  // TCCR1B - TC1 Control Register B
+  TCCR1A = B00000000;
+  TCCR1B = B00000000;
+
+  //initialize counter value to 0
+  TCNT1  = 0;
+  // Changing mode of operation to CTC Mode (Clear Timer on Compare Match)
+  // WGM - Waveform Generation Mode
+  TCCR1B |= (1 << WGM12);
+
+
+  OCR1A = 124; //Compare match
+
+  // 64 prescaler
+  // CS - Clock Select
+  TCCR1B |= (1 << CS11);
+  TCCR1B |= (1 << CS10);
+
+  //Setting interrupts to be called on counter match with OCR1A.
+  // TIMSK1 - Timer/Counter 1 Interrupt Mask Register
+  // OCIEA - Output Compare A Match Interrupt Enable
+  TIMSK1 |= (1 << OCIE1A);
+  interrupts(); 
 }
 
 void loop() {
-
-  // get inputs
-  measuredLux = getLDRLux();
-  // negate to use internal pull up resistors
-
-  // calculate new brightness for the LED
-  feedBack();
 
   #ifdef LOOP_INFO
     Serial.print("Luminance [Lux]: ");
@@ -164,7 +188,7 @@ float getLDRLux() {
 
 
 float feedBack() {
-  measureLux = getLDRLux();
+  measuredLux = getLDRLux();
   int ref;
   double error;
   double output;
@@ -177,20 +201,33 @@ float feedBack() {
   }
 
   //Calculate the error between the current lux value and the refence value
-  error=(ref-measureLux);
+  error=(ref-measuredLux);
   
   //Proportinal Term calculation
-  pterm = ref * kp * b - kp * measureLux;
+  pterm = ref * kp * b - kp * measuredLux;
   
   //Integral Term calculation
   iterm += ((error + lasterror)* ki * kp)*(T/2);
+
+
+  //Anti WindUp
+  if(iterm > WINDUPMAX){
+    iterm = WINDUPMAX;
+  } else if(iterm < -WINDUPMAX){
+    iterm = -WINDUPMAX;
+  }
+
+
   
   //Derivative term calculation
-  dterm = kd/(kd+a*T) * lastlux - kp*kd*a/(kd+a*T)*(measureLux-lastlux);
+  dterm = kd/(kd+a*T) * lastlux - kp*kd*a/(kd+a*T)*(measuredLux-lastlux);
  
   //Calculate the new brightness value with the feedback in mind
   output = (pterm+iterm+dterm)- simulator();
 
+  if(output < abs(DEADZONE)){
+    output = 0;
+  }
   
   //Covert from lux to pwm
   output = brightness + luxToPWM(output);
@@ -199,7 +236,7 @@ float feedBack() {
 
   //Save values for next iteration
   lastoutput = output;
-  lastlux = measureLux;
+  lastlux = measuredLux;
   lasterror = error;
 
   //Return output value from 0 to 100
@@ -227,5 +264,15 @@ float simulator(){
   return desfasamento;
 }
 
+void stateChange(){
+  occupied = !digitalRead(presenceSensor);
+  feedForward();
+}
 
+ISR(TIMER1_COMPA_vect) {
+  noInterrupts(); 
+  feedBack();
+  interrupts(); 
+
+}
 
