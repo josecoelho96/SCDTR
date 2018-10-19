@@ -10,6 +10,11 @@
 
 #define LOW_LUX 50
 #define HIGH_LUX 120
+#define A_LUXTOPWM 1
+#define B_LUXTOPWM 0
+
+
+
 
 const int Vref = 5; // ADC referece voltage
 const int R1ref = 9850; // R1 measured value
@@ -19,7 +24,7 @@ const float bLdr = 1.76; // LDR characteristic curve: b parameter
 
 
 
-
+//Contants used by the PID controle
 const double tau = 1;
 const double a = 1/tau;
 const double b = 1;
@@ -28,6 +33,7 @@ const double kp = 1;//Proportinal
 const double ki = 0.5;//Integral
 const double kd = 0.0;//Derivative
 
+//Values used by the PID controle
 double iterm = 0;
 double dterm = 0;
 double pterm = 0;
@@ -40,10 +46,11 @@ const int luminaire = 3;
 const int presenceSensor = 8;
 const int lightSensor = A1;
 
-float measuredLux;
-bool occupied;
 
-int brightness; // Current led brightness
+//Variables used to keep track of the current state
+float measuredLux; //Lux measured in the room
+bool occupied; //Bollean state that represents if the place that the luminaire is lighting if occupied or not
+int brightness; // Current led brightness [0-255]
 
 
 void setup() {
@@ -52,7 +59,7 @@ void setup() {
   pinMode(luminaire, OUTPUT);
   pinMode(lightSensor, INPUT);
   pinMode(presenceSensor, INPUT_PULLUP);
-  
+  occupied = !digitalRead(presenceSensor);
   // Enable faster PWM on Pin 3 (and 11);
   // Reset TCCR2B register Clock Select (CS) bits
   // TC2 - Timer/Counter1 (8 bits)
@@ -72,10 +79,9 @@ void loop() {
   // get inputs
   measuredLux = getLDRLux();
   // negate to use internal pull up resistors
-  occupied = !digitalRead(presenceSensor);
 
   // calculate new brightness for the LED
-  brightness = updateLEDBrightness(measuredLux, occupied);
+  feedBack();
 
   #ifdef LOOP_INFO
     Serial.print("Luminance [Lux]: ");
@@ -94,6 +100,23 @@ void loop() {
   #endif
 
   
+}
+
+void feedForward(){
+  int ref;
+  int output;
+
+  //Defines what is de disered Lux in the room depending on the current occupation state
+  if (occupied == true){
+    ref = HIGH_LUX;
+  } else {
+    ref = LOW_LUX;
+  }
+
+  output = luxToPWM(ref); //Relationship beetween lux and the pwm value to achieve the proper output
+
+  analogWrite(luminaire,output);
+  brightness = output;
 }
 
 
@@ -140,61 +163,68 @@ float getLDRLux() {
 
 
 
-float updateLEDBrightness(float currentLux, bool occupied) {
+float feedBack() {
+  measureLux = getLDRLux();
   int ref;
   double error;
   double output;
 
+  //Defines what is de disered Lux in the room depending on the current occupation state
   if (occupied == true){
     ref = HIGH_LUX;
   } else {
     ref = LOW_LUX;
   }
 
-
-  error=(ref-currentLux);
+  //Calculate the error between the current lux value and the refence value
+  error=(ref-measureLux);
   
   //Proportinal Term calculation
-  pterm = ref * kp * b - kp * currentLux;
+  pterm = ref * kp * b - kp * measureLux;
   
   //Integral Term calculation
   iterm += ((error + lasterror)* ki * kp)*(T/2);
   
-//  if(iterm>100){
-//    iterm=100;
-//  } else if(iterm<-100){
-//    iterm=-100;
-//  } 
-
-
   //Derivative term calculation
-  dterm = kd/(kd+a*T) * lastlux - kp*kd*a/(kd+a*T)*(currentLux-lastlux);
+  dterm = kd/(kd+a*T) * lastlux - kp*kd*a/(kd+a*T)*(measureLux-lastlux);
  
+  //Calculate the new brightness value with the feedback in mind
+  output = (pterm+iterm+dterm)- simulator();
 
-  output = (pterm+iterm+dterm);
-  if (output <0){
-    output = 0;
-  }
-
-  lastoutput = output;
-  output = luxToPWM(output);
   
+  //Covert from lux to pwm
+  output = brightness + luxToPWM(output);
   analogWrite(luminaire,output);
-  lastlux = currentLux;
+  
+
+  //Save values for next iteration
+  lastoutput = output;
+  lastlux = measureLux;
   lasterror = error;
+
+  //Return output value from 0 to 100
   return map(output,0,255,0,100);
 }
 
-
+//Converts from lux to pwm value. Calibrated for the situation in test
 float luxToPWM(double lux){
   float pwm;
-  pwm = lux;
+  pwm = lux * A_LUXTOPWM +B_LUXTOPWM;
+  //Prevents overflow of the output values
   if(pwm > 255){
     pwm = 255;
   } else if(pwm < 0){
     pwm = 0;
   }
   return pwm;
+}
+
+//Simulates the delay caused by the charging of the capacitor
+float simulator(){
+  float desfasamento = 0;
+
+  
+  return desfasamento;
 }
 
 
