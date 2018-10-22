@@ -6,14 +6,18 @@
 
 // Config/parameters
 // #define DEBUG
-//#define LOOP_INFO
+#define LOOP_INFO
+#define CALIBRATION
+
+#include <EEPROM.h>
+
+
 
 #define LOW_LUX 50
 #define HIGH_LUX 120
-#define A_LUXTOPWM 1
-#define B_LUXTOPWM 0
 #define WINDUPMAX 500
 #define DEADZONE 2
+#define EEPROM_FIRST_ADD 0
 
 
 
@@ -103,6 +107,9 @@ void setup() {
   // OCIEA - Output Compare A Match Interrupt Enable
   TIMSK1 |= (1 << OCIE1A);
   interrupts(); 
+
+  calibrate();
+  feedForward();
 }
 
 void loop() {
@@ -202,6 +209,12 @@ float feedBack() {
 
   //Calculate the error between the current lux value and the refence value
   error=(ref-measuredLux);
+
+  if(error < abs(DEADZONE)){
+    error = 0;
+  }
+
+
   
   //Proportinal Term calculation
   pterm = ref * kp * b - kp * measuredLux;
@@ -225,9 +238,6 @@ float feedBack() {
   //Calculate the new brightness value with the feedback in mind
   output = (pterm+iterm+dterm)- simulator();
 
-  if(output < abs(DEADZONE)){
-    output = 0;
-  }
   
   //Covert from lux to pwm
   output = brightness + luxToPWM(output);
@@ -243,10 +253,38 @@ float feedBack() {
   return map(output,0,255,0,100);
 }
 
+void calibrate(){
+  float a, b, point1, point2;
+  #ifdef CALIBRATE
+    analogWrite(luminaire,0);
+    delay(100);
+    b = getLDRLux();
+    delay(50);
+    analogWrite(luminaire,127);
+    delay(100);
+    point1 = getLDRLux();
+    delay(50);
+    analogWrite(luminaire,254);
+    delay(100);
+    point1 = getLDRLux();
+    delay(50);
+    analogWrite(luminaire,0);
+    a=(254-127)/(point2-point1);
+    EEPROM.put(EEPROM_FIRST_ADD,a);
+    EEPROM.put(EEPROM_FIRST_ADD + sizeof(float),b);
+    
+  #endif
+
+}
+
+
+
 //Converts from lux to pwm value. Calibrated for the situation in test
 float luxToPWM(double lux){
-  float pwm;
-  pwm = lux * A_LUXTOPWM +B_LUXTOPWM;
+  float pwm, a, b;
+  EEPROM.get(EEPROM_FIRST_ADD , a);
+  EEPROM.get(EEPROM_FIRST_ADD + sizeof(float) , b);
+  pwm = lux * a + b;
   //Prevents overflow of the output values
   if(pwm > 255){
     pwm = 255;
