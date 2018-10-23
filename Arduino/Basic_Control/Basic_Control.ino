@@ -34,9 +34,9 @@ const float bLdr = 1.76; // LDR characteristic curve: b parameter
 const double tau = 0.01;
 const double a = 1;
 const double b = 1;
-const double T = 0.002; //500hz Period
-const double kp = 10;//Proportinal
-const double ki = 0.1;//Integral
+const double T = 0.1; //500hz Period
+const double kp = 1;//Proportinal
+const double ki = 0.6;//Integral
 const double kd = 0;//Derivative
 
 //Values used by the PID controle
@@ -103,7 +103,7 @@ void setup() {
   TCCR1B |= (1 << WGM12);
 
 
-  OCR1A = 31; //Compare match
+  OCR1A = 155; //Compare match
 
   // 64 prescaler
   // CS - Clock Select
@@ -218,11 +218,11 @@ float feedBack() {
   //Calculate the error between the current lux value and the refence value
   error=(ref-measuredLux);
 
-  if(error < abs(DEADZONE)){
+  if(abs(error) <= DEADZONE){
     error = 0;
-  } else if(error < (DEADZONE)){
+  } else if(error < DEADZONE){
     error += DEADZONE;
-  } else if(error > (DEADZONE)){
+  } else if(error > DEADZONE){
     error -= DEADZONE;
   }
 
@@ -236,10 +236,10 @@ float feedBack() {
 
 
   //Anti WindUp
-  if(iterm > WINDUPMAX){
+  if(iterm >= WINDUPMAX){
     iterm = WINDUPMAX;
-  } else if(iterm < -WINDUPMAX){
-    iterm = -WINDUPMAX;
+  } else if(iterm <= -1*WINDUPMAX){
+    iterm = -1*WINDUPMAX;
   }
 
 
