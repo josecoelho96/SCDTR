@@ -7,15 +7,16 @@
 // Config/parameters
 // #define DEBUG
 #define LOOP_INFO
-#define CALIBRATE
+//#define CALIBRATE
+#define FEEDBACK
 
 #include <EEPROM.h>
 
 
 
 #define LOW_LUX 50
-#define HIGH_LUX 120
-#define WINDUPMAX 500
+#define HIGH_LUX 100
+#define WINDUPMAX 255
 #define DEADZONE 2
 #define EEPROM_FIRST_ADD 0
 
@@ -30,13 +31,13 @@ const float bLdr = 1.76; // LDR characteristic curve: b parameter
 
 
 //Contants used by the PID controle
-const double tau = 1;
-const double a = 10;
+const double tau = 0.01;
+const double a = 1;
 const double b = 1;
-const double T = 0.005; //2Khz Period
-const double kp = 1;//Proportinal
-const double ki = 0.5;//Integral
-const double kd = 0.0;//Derivative
+const double T = 0.002; //500hz Period
+const double kp = 10;//Proportinal
+const double ki = 0.1;//Integral
+const double kd = 0;//Derivative
 
 //Values used by the PID controle
 double iterm = 0;
@@ -48,7 +49,7 @@ double lastoutput = 0;
 
 // Define pins
 const int luminaire = 3;
-const int presenceSensor = 8;
+const int presenceSensor = 2;
 const int lightSensor = A1;
 
 
@@ -66,7 +67,14 @@ void setup() {
   pinMode(presenceSensor, INPUT_PULLUP);
 
   attachInterrupt(digitalPinToInterrupt(presenceSensor),stateChange,CHANGE);
+
+
+
   calibrate();
+  stateChange();
+
+
+  
   noInterrupts(); 
   // Enable faster PWM on Pin 3 (and 11);
   // Reset TCCR2B register Clock Select (CS) bits
@@ -95,11 +103,11 @@ void setup() {
   TCCR1B |= (1 << WGM12);
 
 
-  OCR1A = 124; //Compare match
+  OCR1A = 31; //Compare match
 
   // 64 prescaler
   // CS - Clock Select
-  TCCR1B |= (1 << CS11);
+  TCCR1B |= (1 << CS12);
   TCCR1B |= (1 << CS10);
 
   //Setting interrupts to be called on counter match with OCR1A.
@@ -108,8 +116,9 @@ void setup() {
   TIMSK1 |= (1 << OCIE1A);
   interrupts(); 
 
-  calibrate();
-  feedForward();
+ 
+  
+  
 }
 
 void loop() {
@@ -119,8 +128,8 @@ void loop() {
     Serial.println(measuredLux);
     Serial.print("Occupied [Boolean]: ");
     Serial.println(occupied);
-    Serial.print("Brightness [%]: ");
-    Serial.println(brightness);
+    Serial.print("Brightness [PWM]: ");
+    Serial.println(lastoutput);
     Serial.print("pTerm]: ");
     Serial.println(pterm);
     Serial.print("iTerm: ");
@@ -199,7 +208,6 @@ float feedBack() {
   int ref;
   double error;
   double output;
-
   //Defines what is de disered Lux in the room depending on the current occupation state
   if (occupied == true){
     ref = HIGH_LUX;
@@ -212,6 +220,10 @@ float feedBack() {
 
   if(error < abs(DEADZONE)){
     error = 0;
+  } else if(error < (DEADZONE)){
+    error += DEADZONE;
+  } else if(error > (DEADZONE)){
+    error -= DEADZONE;
   }
 
 
@@ -234,15 +246,21 @@ float feedBack() {
   
   //Derivative term calculation
   dterm = kd/(kd+a*T) * lastlux - kp*kd*a/(kd+a*T)*(measuredLux-lastlux);
- 
+  #ifdef FEEDBACK
   //Calculate the new brightness value with the feedback in mind
   output = (pterm+iterm+dterm)- simulator();
 
   
   //Covert from lux to pwm
-  output = brightness + luxToPWM(output);
-  analogWrite(luminaire,output);
+  output = brightness + output;
   
+  if(output > 255){
+    output = 255;
+  } else if(output < 0){
+    output = 0;
+  }
+  analogWrite(luminaire,output);
+  #endif
 
   //Save values for next iteration
   lastoutput = output;
@@ -250,7 +268,7 @@ float feedBack() {
   lasterror = error;
 
   //Return output value from 0 to 100
-  return map(output,0,255,0,100);
+  return output;
 }
 
 void calibrate(){
@@ -308,6 +326,9 @@ float simulator(){
 
 void stateChange(){
   occupied = !digitalRead(presenceSensor);
+  pterm = 0;
+  iterm = 0;
+  dterm = 0;
   feedForward();
 }
 
