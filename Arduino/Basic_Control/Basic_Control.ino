@@ -7,7 +7,7 @@
 // Config/parameters
 // #define DEBUG
 #define LOOP_INFO
-#define CALIBRATION
+#define CALIBRATE
 
 #include <EEPROM.h>
 
@@ -66,7 +66,7 @@ void setup() {
   pinMode(presenceSensor, INPUT_PULLUP);
 
   attachInterrupt(digitalPinToInterrupt(presenceSensor),stateChange,CHANGE);
-  
+  calibrate();
   noInterrupts(); 
   // Enable faster PWM on Pin 3 (and 11);
   // Reset TCCR2B register Clock Select (CS) bits
@@ -114,7 +114,7 @@ void setup() {
 
 void loop() {
 
-  #ifdef LOOP_INFO
+  //#ifdef LOOP_INFO
     Serial.print("Luminance [Lux]: ");
     Serial.println(measuredLux);
     Serial.print("Occupied [Boolean]: ");
@@ -128,7 +128,7 @@ void loop() {
     Serial.print("dTerm: ");
     Serial.println(dterm);
     delay(1000);
-  #endif
+  //#endif
 
   
 }
@@ -257,22 +257,26 @@ void calibrate(){
   float a, b, point1, point2;
   #ifdef CALIBRATE
     analogWrite(luminaire,0);
-    delay(100);
+    delay(1000);
     b = getLDRLux();
     delay(50);
     analogWrite(luminaire,127);
-    delay(100);
+    delay(1000);
     point1 = getLDRLux();
     delay(50);
     analogWrite(luminaire,254);
-    delay(100);
-    point1 = getLDRLux();
+    delay(1000);
+    point2 = getLDRLux();
     delay(50);
     analogWrite(luminaire,0);
     a=(254-127)/(point2-point1);
     EEPROM.put(EEPROM_FIRST_ADD,a);
     EEPROM.put(EEPROM_FIRST_ADD + sizeof(float),b);
-    
+    Serial.println("Calibration: ");
+    Serial.print("a: ");
+    Serial.println(a);
+    Serial.print("b: ");
+    Serial.println(b);
   #endif
 
 }
@@ -308,9 +312,7 @@ void stateChange(){
 }
 
 ISR(TIMER1_COMPA_vect) {
-  noInterrupts(); 
   feedBack();
-  interrupts(); 
 
 }
 
