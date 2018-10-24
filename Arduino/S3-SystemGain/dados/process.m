@@ -1,6 +1,5 @@
-filename = 't6-lab.tsv';
+filename = 't7-pos.tsv';
 fileID = fopen(filename, 'r', 'n', 'UTF-8');
-
 LDR = [];
 LED = [];
 mLdr = -0.652;
@@ -48,6 +47,8 @@ LDR(:, 5) = 10.^((log10(LDR(:, 4)/1000) - bLdr)/mLdr);
 for i = 1:length(LDR)-5
     LDRsmooth(i, :) = [LDR(i, 1) mean(LDR(i:i+5, 3))];
 end
+
+LDRmedian = medfilt1(LDR(:,3), 5);
     
 figure;
 hold on;
@@ -70,6 +71,7 @@ ylabel('Input: LED [8-bit PWM: 0 - 255]')
 yyaxis right;
 plot(LDR(:,1), LDR(:,3), 'r.--')
 plot(LDRsmooth(:,1), LDRsmooth(:,2), 'g.-')
+plot(LDR(:,1), LDRmedian, 'k.-')
 % ylabel('Resposta no LDR [Voltage]')
 % title('Variação do LED e reposta do LDR - Processado');
 % xlabel('Tempo [us]')
