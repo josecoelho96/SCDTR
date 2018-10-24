@@ -7,15 +7,16 @@
 // Config/parameters
 // #define DEBUG
 #define LOOP_INFO
-#define CALIBRATE
+// #define CALIBRATE
+#define FEEDBACK
 
 #include <EEPROM.h>
 
 
 
 #define LOW_LUX 50
-#define HIGH_LUX 120
-#define WINDUPMAX 500
+#define HIGH_LUX 100
+#define WINDUPMAX 255
 #define DEADZONE 2
 #define EEPROM_FIRST_ADD 0
 
@@ -30,13 +31,13 @@ const float bLdr = 1.76; // LDR characteristic curve: b parameter
 
 
 //Contants used by the PID controle
-const double tau = 1;
-const double a = 10;
+const double tau = 0.01;
+const double a = 1;
 const double b = 1;
-const double T = 0.005; //2Khz Period
+const double T = 0.1; //500hz Period
 const double kp = 1;//Proportinal
-const double ki = 0.5;//Integral
-const double kd = 0.0;//Derivative
+const double ki = 0.6;//Integral
+const double kd = 0;//Derivative
 
 //Values used by the PID controle
 double iterm = 0;
@@ -48,8 +49,8 @@ double lastoutput = 0;
 
 // Define pins
 const int luminaire = 3;
-const int presenceSensor = 8;
-const int lightSensor = A1;
+const int presenceSensor = 2;
+const int lightSensor = A0;
 
 
 //Variables used to keep track of the current state
@@ -59,14 +60,24 @@ int brightness; // Current led brightness [0-255]
 
 
 void setup() {
+
+  noInterrupts();
+
   Serial.begin(2000000);
+
   // Define IO
   pinMode(luminaire, OUTPUT);
   pinMode(lightSensor, INPUT);
   pinMode(presenceSensor, INPUT_PULLUP);
 
-  noInterrupts();
+
+
   attachInterrupt(digitalPinToInterrupt(presenceSensor), stateChange, CHANGE);
+
+  calibrate();
+  stateChange();
+
+  // noInterrupts();
 
   // Enable faster PWM on Pin 3 (and 11);
   // Reset TCCR2B register Clock Select (CS) bits
@@ -91,7 +102,6 @@ void setup() {
   // WGM - Waveform Generation Mode
   TCCR1B |= (1 << WGM12);
 
-  // Adjusting prescaler (clk/1024, f = 15.625 kHz, T = 64 us)
   // CS - Clock Select
   TCCR1B |= (1 << CS12);
   TCCR1B |= (1 << CS10);
@@ -109,14 +119,8 @@ void setup() {
   // OCR1A = 31249; // T = 2 s | f = 0.5 Hz
   OCR1A = 31; // T = 2 ms | f = 488 Hz
 
-  //Setting interrupts to be called on counter match with OCR1A.
-  // TIMSK1 - Timer/Counter 1 Interrupt Mask Register
-  // OCIEA - Output Compare A Match Interrupt Enable
-  TIMSK1 |= (1 << OCIE1A);
   interrupts();
 
-  calibrate();
-  feedForward();
 }
 
 void loop() {
@@ -126,8 +130,8 @@ void loop() {
     Serial.println(measuredLux);
     Serial.print("Occupied [Boolean]: ");
     Serial.println(occupied);
-    Serial.print("Brightness [%]: ");
-    Serial.println(brightness);
+    Serial.print("Brightness [PWM]: ");
+    Serial.println(lastoutput);
     Serial.print("pTerm]: ");
     Serial.println(pterm);
     Serial.print("iTerm: ");
@@ -204,7 +208,6 @@ float feedBack() {
   int ref;
   double error;
   double output;
-
   //Defines what is de disered Lux in the room depending on the current occupation state
   if (occupied == true){
     ref = HIGH_LUX;
@@ -215,8 +218,12 @@ float feedBack() {
   //Calculate the error between the current lux value and the refence value
   error=(ref-measuredLux);
 
-  if(error < abs(DEADZONE)){
+  if(abs(error) <= DEADZONE){
     error = 0;
+  } else if(error < DEADZONE){
+    error += DEADZONE;
+  } else if(error > DEADZONE){
+    error -= DEADZONE;
   }
 
 
@@ -229,25 +236,31 @@ float feedBack() {
 
 
   //Anti WindUp
-  if(iterm > WINDUPMAX){
+  if(iterm >= WINDUPMAX){
     iterm = WINDUPMAX;
-  } else if(iterm < -WINDUPMAX){
-    iterm = -WINDUPMAX;
+  } else if(iterm <= -1*WINDUPMAX){
+    iterm = -1*WINDUPMAX;
   }
 
 
   
   //Derivative term calculation
   dterm = kd/(kd+a*T) * lastlux - kp*kd*a/(kd+a*T)*(measuredLux-lastlux);
- 
+  #ifdef FEEDBACK
   //Calculate the new brightness value with the feedback in mind
   output = (pterm+iterm+dterm)- simulator();
 
   
   //Covert from lux to pwm
-  output = brightness + luxToPWM(output);
-  analogWrite(luminaire,output);
+  output = brightness + output;
   
+  if(output > 255){
+    output = 255;
+  } else if(output < 0){
+    output = 0;
+  }
+  analogWrite(luminaire,output);
+  #endif
 
   //Save values for next iteration
   lastoutput = output;
@@ -255,7 +268,7 @@ float feedBack() {
   lasterror = error;
 
   //Return output value from 0 to 100
-  return map(output,0,255,0,100);
+  return output;
 }
 
 void calibrate(){
@@ -313,6 +326,9 @@ float simulator(){
 
 void stateChange(){
   occupied = !digitalRead(presenceSensor);
+  pterm = 0;
+  iterm = 0;
+  dterm = 0;
   feedForward();
 }
 
