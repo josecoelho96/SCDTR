@@ -8,6 +8,7 @@ int currentBrightnessLevel = 0;
 int levelInc = 1;
 
 void setup() {
+  noInterrupts();
   Serial.begin(2000000);
   pinMode(luminaire, OUTPUT);
   currentBrightnessLevel = 0;
@@ -54,6 +55,12 @@ void setup() {
   // REFSn: Reference Selection [n = 1:0]
   // Set reference voltage to VCC : 01
   ADMUX |= (1 << REFS0);
+
+  // MUXn: Analog Channel Selection [n = 3:0]
+  // Select Input
+  // - 0000 : A0
+  // - 0001 : A1
+  ADMUX |= B00000000;
   /*
   // Setting prescaler (clk/32, f = 38.5 kHz because 13 cycles per conversion)
   // ADPS - ADC prescaler select
@@ -97,10 +104,11 @@ void setup() {
   // TCCR2B |= (1 << CS22);
   // TCCR2B |= (1 << CS21);
   TCCR2B |= (1 << CS20);
+  interrupts();
 }
 
 void loop() {
-
+  
 }
 
 // Interrupt Service Routines
