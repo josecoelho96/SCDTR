@@ -65,9 +65,9 @@ void setup() {
   pinMode(lightSensor, INPUT);
   pinMode(presenceSensor, INPUT_PULLUP);
 
-  attachInterrupt(digitalPinToInterrupt(presenceSensor),stateChange,CHANGE);
-  calibrate();
-  noInterrupts(); 
+  noInterrupts();
+  attachInterrupt(digitalPinToInterrupt(presenceSensor), stateChange, CHANGE);
+
   // Enable faster PWM on Pin 3 (and 11);
   // Reset TCCR2B register Clock Select (CS) bits
   // TC2 - Timer/Counter1 (8 bits)
@@ -79,8 +79,7 @@ void setup() {
   TCCR2B |= (1 << CS20);
 
 
-  //Setup Timer for feedback loop (2Khz)
-  // Configure Timers/Interrupts
+  //Setup Timer for feedback loop (500 Hz)
   // Resetting TCCR1A and TCCR1B registers.
   // TC1 - Timer/Counter1 (16 bits)
   // TCCR1A - TC1 Control Register A
@@ -88,25 +87,33 @@ void setup() {
   TCCR1A = B00000000;
   TCCR1B = B00000000;
 
-  //initialize counter value to 0
-  TCNT1  = 0;
   // Changing mode of operation to CTC Mode (Clear Timer on Compare Match)
   // WGM - Waveform Generation Mode
   TCCR1B |= (1 << WGM12);
 
-
-  OCR1A = 124; //Compare match
-
-  // 64 prescaler
+  // Adjusting prescaler (clk/1024, f = 15.625 kHz, T = 64 us)
   // CS - Clock Select
-  TCCR1B |= (1 << CS11);
+  TCCR1B |= (1 << CS12);
   TCCR1B |= (1 << CS10);
 
   //Setting interrupts to be called on counter match with OCR1A.
   // TIMSK1 - Timer/Counter 1 Interrupt Mask Register
   // OCIEA - Output Compare A Match Interrupt Enable
   TIMSK1 |= (1 << OCIE1A);
-  interrupts(); 
+
+  // Output compare register value.
+  // Interruptions will occur at each (OCR1A+1)*T seconds. (T = 64 us)
+  // T_interrupt = (OCR+1)*T
+  // f_interrupt = 16MHz /((OCR+1)*1024)
+  // OCR1A = 15624; // T = 1 s | f = 1 Hz
+  // OCR1A = 31249; // T = 2 s | f = 0.5 Hz
+  OCR1A = 31; // T = 2 ms | f = 488 Hz
+
+  //Setting interrupts to be called on counter match with OCR1A.
+  // TIMSK1 - Timer/Counter 1 Interrupt Mask Register
+  // OCIEA - Output Compare A Match Interrupt Enable
+  TIMSK1 |= (1 << OCIE1A);
+  interrupts();
 
   calibrate();
   feedForward();
@@ -129,8 +136,6 @@ void loop() {
     Serial.println(dterm);
     delay(1000);
   //#endif
-
-  
 }
 
 void feedForward(){
@@ -315,4 +320,3 @@ ISR(TIMER1_COMPA_vect) {
   feedBack();
 
 }
-
