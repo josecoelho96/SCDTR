@@ -1,4 +1,4 @@
-filename = 't7-pos.tsv';
+filename = 't6-lab.tsv';
 fileID = fopen(filename, 'r', 'n', 'UTF-8');
 LDR = [];
 LED = [];
@@ -25,6 +25,11 @@ fclose(fileID);
 
 LED(:, 3) = ((LED(:,2)).*Vref)/255.0;
 
+% LED content by index
+% 1 - timestamp
+% 2 - pwm value
+% 3 - pwm as dc voltage
+
 % LDR content by index
 % 1 - timestamp
 % 2 - adc value
@@ -44,12 +49,12 @@ end
 LDR(:, 5) = 10.^((log10(LDR(:, 4)/1000) - bLdr)/mLdr);
 
 % smoothing out of values
-for i = 1:length(LDR)-5
-    LDRsmooth(i, :) = [LDR(i, 1) mean(LDR(i:i+5, 3))];
-end
+% for i = 1:length(LDR)-5
+%     LDRsmooth(i, :) = [LDR(i, 1) mean(LDR(i:i+5, 3))];
+% end
 
 LDRmedian = medfilt1(LDR(:,3), 5);
-    
+
 figure;
 hold on;
 grid on;
@@ -70,7 +75,7 @@ stairs(LED(:,1), LED(:,3), 'b.-')
 ylabel('Input: LED [8-bit PWM: 0 - 255]')
 yyaxis right;
 plot(LDR(:,1), LDR(:,3), 'r.--')
-plot(LDRsmooth(:,1), LDRsmooth(:,2), 'g.-')
+% plot(LDRsmooth(:,1), LDRsmooth(:,2), 'g.-')
 plot(LDR(:,1), LDRmedian, 'k.-')
 % ylabel('Resposta no LDR [Voltage]')
 % title('Variação do LED e reposta do LDR - Processado');
