@@ -56,6 +56,9 @@ const int bPID = 1;
 #define DEADZONE 2
 int controlSignal; // LED PWM
 int controlSignalFeedforward;
+unsigned long lastFeedforwardChange;
+float Vf;
+float Vi;
 float measuredLux;
 float p;
 float i;
@@ -174,13 +177,29 @@ void loop() {
 }
 
 void feedforward(){
+  int adcLdr= analogRead(lightSensor);
+  float R;
+  Vi = (Vref*adcLdr)/1023.0;
+
   // Get corresponding PWM value to desired lux
   controlSignal = luxToPWM(targetLux);
+
+  // R in ohm
+  R = pow(10, mLdr*log10(targetLux) + bLdr);
+  Vf = Vref/((R/R1ref) + 1);
+
+  // Get corresponding PWM value to desired lux
+  controlSignal = luxToPWM(targetLux);
+
+  lastFeedforwardChange = millis();
   analogWrite(luminaire, controlSignal);
   controlSignalFeedforward = controlSignal;
 }
 
 void feedback() {
+
+  float realTargetLux = targetLux;
+  // realTargetLux = simulator();
   #ifdef TIMING_DEBUG
     Serial.print("s:");
     Serial.println(micros());
@@ -197,7 +216,7 @@ void feedback() {
   #endif
 
   //Calculate the error between the current lux value and the refence value
-  errorRaw = targetLux - measuredLux;
+  errorRaw = realTargetLux - measuredLux;
 
   // Apply deadzone filtering
   error = deadzone_filtering(errorRaw);
@@ -207,7 +226,7 @@ void feedback() {
   #endif
 
   // PI controller calculations
-  p = Kp * bPID * targetLux - Kp * measuredLux;
+  p = Kp * bPID * realTargetLux - Kp * measuredLux;
   i = i_prev + (Kp * Ki * T/2) * (error + error_prev);
 
   // Block integrator term (basic integrator-windup solution)
@@ -269,16 +288,42 @@ int luxToPWM(float lux) {
   return pwm;
 }
 
-/*
-//Simulates the delay caused by the charging of the capacitor
-float simulator(){
-  float desfasamento = 0;
+// Simulates the delay caused by the charging of the capacitor
+// Outputs actually expected lux value
+float simulator() {
+  unsigned long current_time = millis();
+  float resistanceLdr;
+  float v_adc;
 
-  
-  return desfasamento;
+  v_adc = Vf - (Vf - Vi)*exp((-current_time-lastFeedforwardChange)/time_constant());
+  Serial.print("Vf: ");
+  Serial.println(Vf);
+
+  Serial.print("Vi: ");
+  Serial.println(Vi);
+
+  Serial.print("V_adc: ");
+  Serial.println(v_adc);
+
+  if (v_adc == 0) {
+    // Complete darkness, use value from datasheet
+    resistanceLdr = maxResistanceLdr;
+  } else {
+    resistanceLdr = R1ref*(Vref/v_adc - 1);
+  }
+
+  // Returns real expected lux value
+  return pow(10, (log10(resistanceLdr/1000) - bLdr)/mLdr);
 }
-*/
 
+
+// Outputs tau (the time constant) as a second order approximation
+float time_constant() {
+  float a = 0.008391063263791;
+  float b = 0.029646566281119;
+  float c = 0.021355097710248;
+  return a * pow(2, Vf - Vi) + b * (Vf - Vi) + c;
+}
 
 // Converts an ADC reading (from a LDR) to lux
 float getLDRLux() {
