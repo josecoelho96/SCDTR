@@ -10,6 +10,7 @@
 // #define FEEDBACK_DEBUG
 // #define TIMING_DEBUG
 #define PLOT_SYSTEM
+// #define DEBUG_SIMULATOR
 // ============================== LOGGING CONTROL =============================
 
 
@@ -43,7 +44,7 @@ const float bLdr = 1.76; // LDR characteristic curve: b parameter
 const float Kp = 1; // Proportional gain
 const float Ki = 0.5; // Integral gain
 // const float Kd = 0; // Derivative gain
-#define WINDUPMAX 160 // Max value for integrator term
+#define WINDUPMAX 100 // Max value for integrator term
 const float mLuxPWMConverter = 0.5519;
 const float bLuxPWMConverter = 1.2202;
 const int bPID = 1;
@@ -296,15 +297,16 @@ float simulator() {
   float v_adc;
 
   v_adc = Vf - (Vf - Vi)*exp((-current_time-lastFeedforwardChange)/time_constant());
-  Serial.print("Vf: ");
-  Serial.println(Vf);
+  #ifdef DEBUG_SIMULATOR
+    Serial.print("Vf: ");
+    Serial.println(Vf);
 
-  Serial.print("Vi: ");
-  Serial.println(Vi);
+    Serial.print("Vi: ");
+    Serial.println(Vi);
 
-  Serial.print("V_adc: ");
-  Serial.println(v_adc);
-
+    Serial.print("V_adc: ");
+    Serial.println(v_adc);
+  #endif
   if (v_adc == 0) {
     // Complete darkness, use value from datasheet
     resistanceLdr = maxResistanceLdr;
