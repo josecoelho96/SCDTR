@@ -25,6 +25,8 @@ byte k[254][2];
 #include <Wire.h>
 byte x = 0;
 byte address = 1;
+byte numberofactivenodes = 1;
+#define ACK 0
 
 // ============================== I2C CONTROL =============================
 
@@ -389,16 +391,37 @@ void sendConsensusI2C ( int limit , int consensus ){
 
 void startCalibration(){
 
-  //Set led to max output
-  analogWrite(luminaire,255);
+  int counter=1;
+  byte ad, type, msgsize, rx;
   //Send calibration command
   Wire.beginTransmission(0);
   Wire.write(address);
   Wire.write(STARTCALIBRATEBYTE);
   Wire.write(0);
   Wire.endTransmission();
-  //Wait for all arduinos to receive and respond
-  
+  //Wait for all arduinos to receive and respond ACK
+  delay(50);
+  //Counts reponses
+  while(Wire.available()){
+    ad = Wire.read();
+    type = Wire.read();
+    //Counts how many ACK's are received
+    if(type == ACK){
+      counter++;
+    }
+    msgsize = Wire.read();
+    //Removes message from stack in case it wasn't a ACK
+    for(int i = 0; i < msgsize; i++){
+      rx = Wire.read();
+    }  
+  }
+  //Set led to max output
+  analogWrite(luminaire,255);
+  //Broadcast ACK to start receiving readings
+  sendACK(0);
+
+
+  //Read influence from this node in the others and save in matrix
   while(Wire.available()){
     byte ad = Wire.read();
     byte type = Wire.read();
@@ -409,9 +432,9 @@ void startCalibration(){
             k[ad][0] = rx;
       }
     }
-    
-
   }
+    
+}
   
 
   
@@ -419,6 +442,13 @@ void startCalibration(){
   
 }
 
+void sendACK(byte to){
+  Wire.beginTransmission(to);
+  Wire.write(address);
+  Wire.write(ACK);
+  Wire.write(0);
+  Wire.endTransmission();
+}
 
 void readViaI2C(){
 
