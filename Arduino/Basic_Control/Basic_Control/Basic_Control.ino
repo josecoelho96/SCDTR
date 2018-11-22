@@ -20,6 +20,13 @@
 float k[254][2];
 // ============================== Calibration =============================
 
+// ============================== Consensus =============================
+
+#define CONSENSUSBYTE 3
+#define TARGETBYTE 4
+int consensus;
+
+// ============================== Consensus =============================
 // ============================== I2C CONTROL =============================
 
 #include <Wire.h>
@@ -375,19 +382,29 @@ float deadzone_filtering(float error) {
 
 //========================== I2C comunication ==========================
 //Limites
-//Consensus
-void sendConsensusI2C ( int limit , int consensus ){
+//Calculated Consensus value
+void sendConsensusI2C (){
 
   Wire.beginTransmission(0);
   Wire.write(address);
-  Wire.write('l');
-  Wire.write(limit);
-  Wire.write('c');
-  Wire.write(limit);
+  Wire.write(CONSENSUSBYTE);
+  Wire.write(0);
   Wire.endTransmission();
 
 }
 
+void sendTargetI2C (){
+
+  Wire.beginTransmission(0);
+  Wire.write(address);
+  Wire.write(TARGETBYTE);
+  Wire.write(0);
+  Wire.endTransmission();
+
+}
+
+
+//CAlibrate this node 
 void calibration(){
 
   int counter=1;
@@ -434,24 +451,22 @@ void calibration(){
       byte type = Wire.read();
       if(type == CALIBRATIONVALUEBYTE){
         counter++;
+        //Read bytes and convert to float
         byte msgsize = Wire.read();
         for(int i = 0; i <= msgsize; i++){
               data.asBytes[i] = Wire.read(); 
         }
-
+        //Save float on matriz
         k[(int)ad][0] = data.asFloat;
       }
     }
-
   }
   analogWrite(luminaire,255);
   //Send ACK to 
   sendACK(0);
-  
-  
-  
 }
 
+//Send ACK message to a adrress (OR Broadcast if address 0)
 void sendACK(byte to){
   Wire.beginTransmission(to);
   Wire.write(address);
@@ -460,27 +475,35 @@ void sendACK(byte to){
   Wire.endTransmission();
 }
 
+
+//Por um timer a chamar esta funçao e implementar mais tipos
 void readI2C(){
   byte ad, type, msgsize; 
+  //Check if there is comunications os the stack
   while (Wire.available()) {
     ad = Wire.read();
     type = Wire.read();
+    //Do different things deppending on the type of message received
     if(type == STARTCALIBRATEBYTE){
       sendCalibration(ad);
+       //Always remove garbage from stack
+       byte msgsize = Wire.read();
+       for(int i = 0; i <= msgsize; i++){
+          byte rx = Wire.read();
+       }
     }
-    byte msgsize = Wire.read();
-    for(int i = 0; i <= msgsize; i++){
-      byte rx = Wire.read();
-    }
-  } 
-
-  
+  }  
 }
 
+
+//Send calibration value (float) in 4 bytes
 void sendCalibration(byte ad){
   byte reading[4];
-  byte stopbyte = 254;
+  //Send ACK confirming that is ready
   sendACK(ad);
+  //Waits for ACK to continue
+  waitForACK(ad);
+  //Send value via I2C
   Wire.beginTransmission(ad);
   Wire.write(address);
   Wire.write(CALIBRATIONVALUEBYTE);
@@ -488,9 +511,17 @@ void sendCalibration(byte ad){
   getCalibrationToByte(*reading);
   Wire.write(reading,4);
   Wire.endTransmission();
+  //Waits for ACK to continue
+  waitForACK(ad);
+}
+
+//Waits untils receives a ACK from a specific adress
+void waitForACK(byte ad){
+  byte stopbyte = 255;
+  byte from = 255;
   while (stopbyte != ACK && from == ad) {
     while (Wire.available()) {
-      byte from = Wire.read();
+      from = Wire.read();
       byte stopbyte = Wire.read();
       byte msgsize = Wire.read();
       //Removes message from stack in case it wasn't a ACK
@@ -501,7 +532,7 @@ void sendCalibration(byte ad){
   }
 }
 
-//Read
+//Read lux and convert into bytes
 void getCalibrationToByte(byte *reading){
   *((float *) reading) = getLDRLux();
 }
