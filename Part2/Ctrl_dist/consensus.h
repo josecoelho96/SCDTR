@@ -1,9 +1,9 @@
 struct node {
     int index;
-    void* d;
-    void* d_av;
-    void* y;
-    void* k;
+    float* d;
+    float* d_av;
+    float* y;
+    float* k;
     float n;
     float m;
     float c;
@@ -12,7 +12,7 @@ struct node {
     };
 
 
-void init_node(void*, void*, void*, void*, void*, void*, int, int);
-int check_feasibility(struct*, void*, int);
-float evaluate_cost(node*, void*, float, int);
-void primal_solve(node*, float, int, void*, float*);
+node* init_node(float*, float*, float*, float*, float*, float*, int, int);
+float check_feasibility(node*, float*, int);
+float evaluate_cost(node*, float*, float, int);
+void primal_solve(node*, float, int, float*, float*);

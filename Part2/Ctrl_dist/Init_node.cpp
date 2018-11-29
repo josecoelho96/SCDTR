@@ -1,7 +1,7 @@
 #include <consensus.h>
 #include <math.h> 
 
-void init_node(void* d, void* l, void* o, void* L, void* K, void* c, int number_nodes, int i){
+void init_node(float* d, float* l, void* o, void* L, void* K, void* c, int number_nodes, int i){
 
 node* n;
 // SOLVE WITH CONSENSUS

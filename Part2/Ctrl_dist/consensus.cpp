@@ -4,7 +4,7 @@
 // n: nó actual
 // d_sum: array com a soma dos dimming level dos outros nós
 
-void consesus(node* n, void* d_sum, int number_nodes){
+void consesus(node* n, float* d_sum, int number_nodes){
 
     // node
     float rho = 0.07; 
@@ -29,8 +29,8 @@ void consesus(node* n, void* d_sum, int number_nodes){
     }
 }
 
-int check_feasibility(node* n, void* d, int number_nodes){
-    int check;
+float check_feasibility(node* n, float* d, int number_nodes){
+    float check;
     float tol = 0.001; //tolerance for rounding errors
     float accum;
     if (d[n->index] < 0-tol){
@@ -43,7 +43,7 @@ int check_feasibility(node* n, void* d, int number_nodes){
         return check;
     }
     for (int j = 0; j < number_nodes; ++j) {
-        accum += d[j]*d[j];
+        accum += d[j]*n->k[j];
     }
     
     if (accum < n->L-n->o-tol){
@@ -55,7 +55,7 @@ int check_feasibility(node* n, void* d, int number_nodes){
     
 }
 
-void init_node(void* d, void* l, void* o, void* L, void* K, void* c, int number_nodes, int i, void* y, void* d_av){
+node* init_node(float* d, float* l, float* o, float* L, float* K, float* c, int number_nodes, int i, float* y, float* d_av){
     
     node* n;
     // SOLVE WITH CONSENSUS
@@ -80,7 +80,7 @@ void init_node(void* d, void* l, void* o, void* L, void* K, void* c, int number_
     return n;
 }
 
-float evaluate_cost(node* n, void* d, float rho, int number_nodes){
+float evaluate_cost(node* n, float* d, float rho, int number_nodes){
     
     float cost;
     float accum1, accum2;
@@ -95,7 +95,7 @@ float evaluate_cost(node* n, void* d, float rho, int number_nodes){
     return cost;
 }
 
-void primal_solve(node* n, float rho, int number_nodes, void* d, float* cost){
+void primal_solve(node* n, float rho, int number_nodes, float* d, float* cost){
     
     float rho = 0.07;
     int j;
@@ -115,19 +115,19 @@ void primal_solve(node* n, float rho, int number_nodes, void* d, float* cost){
         z[j] = rho*n->d_av[j] - node->y[j];
     }
     
-    z[n->index] = z[node->index) - node->c;
+    z[n->index] = z[n->index] - n->c;
                    //unconstrained minimum
                    float d_u[number_nodes];
                    for (int j = 0; j < number_nodes; j++) {
                    d_u[j] = (1/rho)*z[j];
                    }
                    
-                   int sol_unconstrained = check_feasibility(n, &d_u, number_nodes);
+                   sol_unconstrained = check_feasibility(n, d_u, number_nodes);
                    
                    if (sol_unconstrained){
                    
                    //REVISE:
-                   float cost_unconstrained = evaluate_cost(n, &d_u, rho, number_nodes);
+                   float cost_unconstrained = evaluate_cost(n, d_u, rho, number_nodes);
                    if (cost_unconstrained < cost_best){
                    for (int j = 0; j < number_nodes; j++) {
                    d[j]=d_u[j];
@@ -150,10 +150,10 @@ void primal_solve(node* n, float rho, int number_nodes, void* d, float* cost){
                    d_bl[j] = (1/rho)*z[j]-n->k[j]/(n->o-n->L+accum);
                    }
                    //check feasibility of minimum constrained to linear boundary
-                   int sol_boundary_linear = check_feasibility(n, &d_bl, number_nodes);
+                   sol_boundary_linear = check_feasibility(n, d_bl, number_nodes);
                    //compute cost and if best store new optimum
                    if (sol_boundary_linear){
-                   float cost_boundary_linear = evaluate_cost(n, &d_bl,rho, number_nodes);
+                   float cost_boundary_linear = evaluate_cost(n, d_bl,rho, number_nodes);
                    if (cost_boundary_linear < cost_best){
                    for (int j = 0; j < number_nodes; j++) {
                    d_best[j]=d_bl[j];
@@ -170,10 +170,10 @@ void primal_solve(node* n, float rho, int number_nodes, void* d, float* cost){
                    d_b0[n->index] = 0;
                    
                    //check feasibility of minimum constrained to 0 boundary
-                   int sol_boundary_0 = check_feasibility(n, &d_b0, number_nodes);
+                   sol_boundary_0 = check_feasibility(n, d_b0, number_nodes);
                    //compute cost and if best store new optimum
                    if (sol_boundary_0){
-                   float cost_boundary_0 = evaluate_cost(n, &d_b0,rho, number_nodes);
+                   float cost_boundary_0 = evaluate_cost(n, d_b0,rho, number_nodes);
                    if (cost_boundary_0 < cost_best){
                    for (int j = 0; j < number_nodes; j++) {
                    d_best[j]=d_b0[j];
@@ -189,10 +189,10 @@ void primal_solve(node* n, float rho, int number_nodes, void* d, float* cost){
                    }
                    d_b1[n->index] = 100;
                    //check feasibility of minimum constrained to 100 boundary
-                   int sol_boundary_100 = check_feasibility(n, &d_b1, number_nodes);
+                   sol_boundary_100 = check_feasibility(n, d_b1, number_nodes);
                    // compute cost and if best store new optimum
                    if (sol_boundary_100) {
-                   float cost_boundary_100 = evaluate_cost(n, &d_b1,rho, number_nodes);
+                   float cost_boundary_100 = evaluate_cost(n, d_b1,rho, number_nodes);
                    if (cost_boundary_100 < cost_best){
                    for (int j = 0; j < number_nodes; j++) {
                    d_best[j]=d_b1[j];
@@ -213,10 +213,10 @@ void primal_solve(node* n, float rho, int number_nodes, void* d, float* cost){
                    }
                    d_l0[n->index] = 0;
                    //check feasibility of minimum constrained to linear and 0 boundary
-                   int sol_linear_0 = check_feasibility(n, &d_l0, number_nodes);
+                   sol_linear_0 = check_feasibility(n, d_l0, number_nodes);
                    // compute cost and if best store new optimum
                    if (sol_linear_0){
-                   float cost_linear_0 = evaluate_cost(n, &d_l0,rho, number_nodes);
+                   float cost_linear_0 = evaluate_cost(n, d_l0,rho, number_nodes);
                    if (cost_linear_0 < cost_best){
                    for (int j = 0; j < number_nodes; j++) {
                    d_best[j]=d_l0[j];
@@ -232,10 +232,10 @@ void primal_solve(node* n, float rho, int number_nodes, void* d, float* cost){
                    }
                    d_l1[n->index] = 100;
                    //check feasibility of minimum constrained to linear and 0 boundary
-                   int sol_linear_0 = check_feasibility(n, &d_l1, number_nodes);
+                   sol_linear_0 = check_feasibility(n, d_l1, number_nodes);
                    // compute cost and if best store new optimum
                    if (sol_linear_0){
-                   float cost_linear_0 = evaluate_cost(n, &d_l1,rho, number_nodes);
+                   float cost_linear_0 = evaluate_cost(n, d_l1,rho, number_nodes);
                    if (cost_linear_0 < cost_best){
                    for (int j = 0; j < number_nodes; j++) {
                    d_best[j]=d_l1[j];
