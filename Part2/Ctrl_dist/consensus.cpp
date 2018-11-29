@@ -1,4 +1,4 @@
-#include <consensus.h>
+#include "consensus.h"
 #include <math.h>
 
 // n: nó actual
@@ -20,7 +20,7 @@ void consesus(node* n, void* d_sum, int number_nodes){
             
             n->d_av[j] = (n->d[j]+d_sum[j])/2;
     }
-    n->d_av = (node1.d+node2.d)/2;
+   
     
     //Update local lagrangians
     for ( int j = 0; j < number_nodes; j++) {
@@ -30,8 +30,9 @@ void consesus(node* n, void* d_sum, int number_nodes){
 }
 
 int check_feasibility(node* n, void* d, int number_nodes){
-    
+    int check;
     float tol = 0.001; //tolerance for rounding errors
+    float accum;
     if (d[n->index] < 0-tol){
         check = 0;
         return check;
@@ -54,27 +55,27 @@ int check_feasibility(node* n, void* d, int number_nodes){
     
 }
 
-void init_node(void* d, void* l, void* o, void* L, void* K, void* c, int number_nodes, int i){
+void init_node(void* d, void* l, void* o, void* L, void* K, void* c, int number_nodes, int i, void* y, void* d_av){
     
     node* n;
     // SOLVE WITH CONSENSUS
     float rho = 0.07;
     // node initialization
-    n.index = i;
-    n.d = d;
-    n.d_av = d_av;
-    n.y = y;
-    n.k = K;
+    n->index = i;
+    n->d = d;
+    n->d_av = d_av;
+    n->y = y;
+    n->k = K;
     double accum = 0;
     for (int j = 0; j < number_nodes; ++j) {
-        accum += n.k[j] * n.k[j];
+        accum += n->k[j] * n->k[j];
     }
     double norm = sqrt(accum);
-    n.n = pow(norm,2);
-    n.m = n.n-pow(n.k[0],2);
-    n.c = c;
-    n.o = o;
-    n.L = L;
+    n->n = pow(norm,2);
+    n->m = n->n-pow(n->k[0],2);
+    n->c = c;
+    n->o = o;
+    n->L = L;
     
     return n;
 }
@@ -114,7 +115,7 @@ void primal_solve(node* n, float rho, int number_nodes, void* d, float* cost){
         z[j] = rho*n->d_av[j] - node->y[j];
     }
     
-    z[n.index] = z[node.index) - node.c;
+    z[n->index] = z[node->index) - node->c;
                    //unconstrained minimum
                    float d_u[number_nodes];
                    for (int j = 0; j < number_nodes; j++) {
@@ -227,7 +228,7 @@ void primal_solve(node* n, float rho, int number_nodes, void* d, float* cost){
                    //compute minimum constrained to linear and 100 boundary
                    float d_l1[number_nodes];
                    for (int j = 0; j < number_nodes; j++) {
-                   d_l1[j] = (1/rho)*z[j]-(1/n->m)*n.k[j]*(n->o-n->L+100*n->k[n->index])+((1/rho)/n->m)*n->k[j]*(n->k[n->index]*z[n->index]-accum);
+                   d_l1[j] = (1/rho)*z[j]-(1/n->m)*n->k[j]*(n->o-n->L+100*n->k[n->index])+((1/rho)/n->m)*n->k[j]*(n->k[n->index]*z[n->index]-accum);
                    }
                    d_l1[n->index] = 100;
                    //check feasibility of minimum constrained to linear and 0 boundary
