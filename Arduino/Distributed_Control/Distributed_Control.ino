@@ -10,7 +10,7 @@ const int CALIBRATION_LED_ON_TIME = 2000; //ms
 
 
 // =============================== NODE SETTINGS ==============================
-const byte address = 11;
+const byte address = 10;
 // =============================== NODE SETTINGS ==============================
 
 // =================================== FLAGS ==================================
@@ -23,11 +23,12 @@ volatile boolean f_send_joined_network = false;
 volatile boolean f_joined_network = false;
 volatile boolean f_in_network = false;
 
-volatile byte last_node_led_on;
+volatile byte last_node_led_on = 0;
 volatile boolean f_calibration_mode = false;
 volatile boolean f_calibration_next_light = false;
 volatile boolean f_calibration_led_on = false;
 volatile boolean f_calibration_need_to_light_led_on = false;
+
 unsigned long start_time_calibration_led_on;
 
 
@@ -41,6 +42,7 @@ void setup() {
   Serial.begin(9600);
 
   pinMode(3, OUTPUT);
+  pinMode(A0, INPUT);
   
   // Reset all values to defaults
   current_neighbour_nodes = 0;
@@ -58,6 +60,7 @@ void setup() {
   f_calibration_next_light = false;
   f_calibration_led_on = false;
   f_calibration_need_to_light_led_on = false;
+
 
   startI2C();
   if (requestJoinNetwork()) {
@@ -83,7 +86,7 @@ void loop() {
     
   
   // ================ DEBUG ===================================
-  Serial.print("L");
+  // Serial.print("L");
 
   /*
   Serial.print(current_neighbour_nodes);
@@ -95,13 +98,13 @@ void loop() {
     }
   }
   */
-  Serial.print("-");
-  Serial.print(f_in_network);
-  Serial.print("-");
-  Serial.print(f_calibration_mode);
+  // Serial.print("-");
+  // Serial.print(f_in_network);
+  // Serial.print("-");
+  // Serial.print(f_calibration_mode);
 
-  Serial.println("|");   
-  delay(500);
+  // Serial.println("|");   
+  // delay(500);
   // ================ DEBUG ==================================
 }
 
@@ -175,6 +178,11 @@ void calibrate() {
     // End calibration
     sendData(MT_END_CALIBRATION);
     f_calibration_mode = false;
+    last_node_led_on = 0;
+    f_calibration_mode = false;
+    f_calibration_next_light = false;
+    f_calibration_led_on = false;
+    f_calibration_need_to_light_led_on = false;
   }
 }
 
@@ -237,12 +245,22 @@ void receiveData(int howMany) {
 
   if (header[1] == MT_CALIBRATION_LED_ON) {
     //TODO: Anything?
+    // f_calibration_measure_ldr = true;
   }
 
   if (header[1] == MT_CALIBRATION_LED_OFF) {
     last_node_led_on = header[0];
+    // f_calibration_measure_ldr = false;
   }
 
+  if (header[1] == MT_END_CALIBRATION) {
+    f_calibration_mode = false;
+    last_node_led_on = 0;
+    f_calibration_mode = false;
+    f_calibration_next_light = false;
+    f_calibration_led_on = false;
+    f_calibration_need_to_light_led_on = false;
+  }
 }
 
 void sendData(byte type) {
@@ -269,6 +287,10 @@ void requestForCalibration() {
   // Serial.println("requestForCalibration");
   f_calibration_mode = true;
   f_calibration_need_to_light_led_on = true;
+  last_node_led_on = 0;
+  f_calibration_next_light = false;
+  f_calibration_led_on = false;
+
   sendData(MT_REQUEST_FOR_CALIBRATION);
   // unsigned long start_time = millis();
   // Block for 2 secons (interrupts will be called)
