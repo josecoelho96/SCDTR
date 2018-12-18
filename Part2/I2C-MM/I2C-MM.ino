@@ -3,7 +3,7 @@
 #include <Wire.h>
 
 byte x = 0;
-byte address = 1;
+byte address = 2;
 
 void setup() {
   Wire.begin(address);
@@ -18,7 +18,7 @@ void loop() {
   Wire.write(x);
   Wire.endTransmission();
   x++;
-  delay(100);
+  delay(1000);
 }
 
 void receiveEvent(int howMany) {
