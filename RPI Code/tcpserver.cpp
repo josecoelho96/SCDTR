@@ -69,10 +69,10 @@ class session {
             case 'g':
                 switch (data[2]) {
                     //DONE (Add correct function)
-                    case 'I':
+                    case 'l':
                         sscanf(data,"%c %c %d",&a, &b, &c);
                         std::cout << "Get current measured illuminance at desk " << c << ".\n";
-                        sprintf(msg,"I %d %f\n",c, lerfloat());
+                        sprintf(msg,"l %d %f\n",c, lerfloat());
                         break;
                     //DONE (Add correct function)
                     case 'd':
@@ -175,7 +175,7 @@ class session {
             case 'b':
                 sscanf(data,"%c %c %d",&a, &b, &c);
                 std::cout << "Get last minute buffer of variable " << b << " of desk " << c << ".\n";
-                if (b == 'I') {
+                if (b == 'l') {
                     getvalues(bbuffer);
                     sprintf(msg,"b %c %d %s\n",b ,c, bbuffer);
                 } else if (b == 'd') {
@@ -281,4 +281,5 @@ int main(int argc, char* argv[]) {
     i2c.join();
     std::cout<< "Finished" << '\n';
 }
+
 
