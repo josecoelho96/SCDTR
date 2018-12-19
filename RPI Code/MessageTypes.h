@@ -2,15 +2,19 @@
 #define MESSAGE_TYPES_H
 
 // =============================== MESSAGE TYPES ==============================
-// const byte MT_OK = 0;
-// const byte MT_WAIT = 1;
-// const byte MT_ALONE = 2;
-// const byte MT_NETWORK = 3;
+#define MT_OK 0
+#define MT_WAIT 1
+#define MT_ALONE 2
+#define MT_NETWORK 3
+#define MT_STATE 4
+#define MT_BRIGHTNESS 5
+#define MT_LUX 6
 
 #define MT_REQUEST_FOR_CALIBRATION 10
 #define MT_CALIBRATION_LED_ON 11
 #define MT_CALIBRATION_LED_OFF 12
 #define MT_END_CALIBRATION 13
+#define MT_CALIBRATION_VALUE 14
 
 #define MT_REQUEST_JOIN_NETWORK 20
 #define MT_REQUEST_JOIN_NETWORK_REPLY_OK 21

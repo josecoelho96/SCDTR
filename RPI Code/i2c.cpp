@@ -21,6 +21,7 @@
 int close_slave(bsc_xfer_t & xfer);
 int init_slave(bsc_xfer_t &xfer, int addr);
 int starti2c();
+float bytestofloat(int a,int b,int c, int d);
 
 int main(int argc, char *argv[]) {
     starti2c();
@@ -42,7 +43,6 @@ int starti2c(){
     bsc_xfer_t xfer;
     status = init_slave(xfer, SLAVE_ADDR);
     handle = i2cOpen(1, DESTINATION_ADDR, 0); /* Initialize */
-    printf("Press q to quit. Any other key to continue.\n");
     
     while(1) {
         xfer.txCnt = 0;
@@ -56,6 +56,32 @@ int starti2c(){
             }
             */
             switch (xfer.rxBuf[1]) {
+				case MT_OK:
+                    printf("MT_OK from %d",xfer.rxBuf[0]);
+                    break;
+                case MT_WAIT:
+                    printf("MT_WAIT from %d",xfer.rxBuf[0]);
+                    break;
+                case MT_ALONE:
+                    printf("MT_ALONE from %d",xfer.rxBuf[0]);
+                    break;
+                case MT_NETWORK:
+                    printf("MT_NETWORK from %d",xfer.rxBuf[0]);
+                    break;
+                case MT_CALIBRATION_VALUE:
+					if(xfer.rxCnt > 5 && xfer.rxBuf[2]==4){
+						printf("MT_CALIBRATION_VALUE  from d = %f",xfer.rxBuf[0], bytestofloat(xfer.rxBuf[3],xfer.rxBuf[4],xfer.rxBuf[5],xfer.rxBuf[6]));
+                    }
+                    break;
+                case MT_STATE:
+                    printf("MT_STATE from %d",xfer.rxBuf[0]);
+                    break;
+                case MT_BRIGHTNESS:
+                    printf("MT_BRIGHTNESS from %d",xfer.rxBuf[0]);
+                    break;
+                case MT_LUX:
+                    printf("MT_LUX from %d",xfer.rxBuf[0]);
+                    break;
                 case MT_REQUEST_FOR_CALIBRATION:
                     printf("REQUEST_FOR_CALIBRATION from %d",xfer.rxBuf[0]);
                     break;
@@ -123,6 +149,18 @@ int init_slave(bsc_xfer_t &xfer, int addr) {
     0x01 ; /* enable BSC peripheral */
     return bscXfer(&xfer);
 }
+
+float bytestofloat(int a,int b,int c, int d){
+	float output;
+	*((int*)(&output) + 3) = a;
+	*((int*)(&output) + 2) = b;
+	*((int*)(&output) + 1) = c;
+	*((int*)(&output) + 0) = d;
+	
+	
+	return output;
+}
+
 
 int close_slave(bsc_xfer_t & xfer) {
     xfer.control = 0;
