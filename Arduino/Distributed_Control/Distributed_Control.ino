@@ -1,6 +1,83 @@
 #include "MessageTypes.h"
 #include "Wire.h"
 
+// Arduino code for smart luminaire
+// SCDTR 1S 2018/19
+// Tecnico Lisboa
+// David Teles - Jose Coelho - Afonso Soares
+// ALL RIGHTS RESERVED
+
+// ============================== LOGGING CONTROL =============================
+// #define DEBUG
+// #define LOOP_INFO
+// #define FEEDBACK_DEBUG
+// #define TIMING_DEBUG
+#define PLOT_SYSTEM
+
+// ============================== LOGGING CONTROL =============================
+
+// ============================== Calibration =============================
+
+volatile float k = 0;
+volatile int number_of_readings = 0;
+// ============================== Calibration =============================
+
+// ============================== Consensus =============================
+
+#define CONSENSUSBYTE 3
+#define TARGETBYTE 4
+int consensus;
+
+// ============================== Consensus =============================
+// ================================== PINOUT ==================================
+const int luminaire = 3;
+const int presenceSensor = 2;
+const int lightSensor = A0;
+// ================================== PINOUT ==================================
+
+
+// ============================== STATE VARIABLES =============================
+volatile bool occupied; // True if presence detected, False otherwise
+volatile int targetLux; // Changed according occupation and LOW_LUX or HIGH_LUX
+volatile bool updateFeedback; // True if feedback parameters should be updated
+// ============================== STATE VARIABLES =============================
+
+
+// ============================= CONTROL VARIABLES ============================
+// const float T = 0.002; // freq: 500 Hz
+const float T = 0.004; // freq: 250 Hz
+// const float T = 0.01; // freq: 100 Hz
+// ============================= CONTROL VARIABLES ============================
+
+
+// ============================= SYSTEM CONSTANTS =============================
+const int Vref = 5; // ADC referece voltage
+const int R1ref = 9850; // R1 measured value
+const long int maxResistanceLdr = 1000000; //1MOhm, defined by datasheet
+const float mLdr = -0.652; // LDR characteristic curve: m parameter
+const float bLdr = 1.76; // LDR characteristic curve: b parameter
+const float Kp = 1; // Proportional gain
+const float Ki = 0.5; // Integral gain
+// const float Kd = 0; // Derivative gain
+#define WINDUPMAX 160 // Max value for integrator term
+const float mLuxPWMConverter = 0.5519;
+const float bLuxPWMConverter = 1.2202;
+const int bPID = 1;
+// ============================= SYSTEM CONSTANTS =============================
+
+
+// ============================= SYSTEM PARAMETERS ============================
+#define LOW_LUX 50
+#define HIGH_LUX 100
+#define DEADZONE 2
+int controlSignal; // LED PWM
+int controlSignalFeedforward;
+float measuredLux;
+float p;
+float i;
+float i_prev;
+float error_prev;
+// ============================= SYSTEM PARAMETERS ============================
 
 // ============================== GLOBAL SETTINGS =============================
 const int MAX_NODES = 3; // Defined the max number of nodes
@@ -22,6 +99,7 @@ volatile boolean f_node_already_on_network = false;
 volatile boolean f_send_joined_network = false;
 volatile boolean f_joined_network = false;
 volatile boolean f_in_network = false;
+volatile boolean f_calibration_measure_ldr = false;
 
 volatile byte last_node_led_on = 0;
 volatile boolean f_calibration_mode = false;
@@ -83,6 +161,25 @@ void loop() {
   if (f_calibration_mode) {
     calibrate();
   }
+
+  if(f_calibration_measure_ldr=true){
+    k = getLDRLux();
+    number_of_readings++;
+  } else if(k != 0 && number_of_readings != 0){
+    byte reading[4];
+    k=k/number_of_readings;
+    number_of_readings = 0;
+    Wire.beginTransmission(0);
+    Wire.write(address);
+    Wire.write(MT_CALIBRATION_VALUE);
+    Wire.write(4);
+    *((float *) reading) = k;
+    Wire.write(reading,4);
+    Wire.endTransmission(); 
+  }
+
+  
+  
     
   
   // ================ DEBUG ===================================
@@ -107,6 +204,7 @@ void loop() {
   // delay(500);
   // ================ DEBUG ==================================
 }
+
 
 
 void calibrate() {
@@ -245,12 +343,13 @@ void receiveData(int howMany) {
 
   if (header[1] == MT_CALIBRATION_LED_ON) {
     //TODO: Anything?
-    // f_calibration_measure_ldr = true;
+    f_calibration_measure_ldr = true;
+    
   }
 
   if (header[1] == MT_CALIBRATION_LED_OFF) {
     last_node_led_on = header[0];
-    // f_calibration_measure_ldr = false;
+    f_calibration_measure_ldr = false;
   }
 
   if (header[1] == MT_END_CALIBRATION) {
@@ -296,3 +395,47 @@ void requestForCalibration() {
   // Block for 2 secons (interrupts will be called)
   // while (millis() - start_time < TIMEOUT) {}
 }
+
+// Converts an ADC reading (from a LDR) to lux
+float getLDRLux() {
+  int adcLdr;
+  float voltageLdr;
+  float resistanceLdr;
+  float luxLdr;
+
+  adcLdr = analogRead(lightSensor);
+  #ifdef DEBUG
+    Serial.print("LDR [ADC value]: ");
+    Serial.println(adcLdr);
+  #endif
+
+  voltageLdr = (Vref*adcLdr)/1023.0;
+  #ifdef DEBUG
+    Serial.print("LDR [Voltage at terminal]: ");
+    Serial.println(voltageLdr);
+  #endif
+
+  if (voltageLdr == 0) {
+    // Complete darkness, use value from datasheet
+    resistanceLdr = maxResistanceLdr;
+  } else {
+    resistanceLdr = R1ref*(Vref/voltageLdr - 1);
+  }
+
+  #ifdef DEBUG
+    Serial.print("LDR [Resistance]: ");
+    Serial.println(resistanceLdr);
+  #endif
+
+  // Resistance is converted to kOhm
+  luxLdr = pow(10, (log10(resistanceLdr/1000) - bLdr)/mLdr);
+
+  #ifdef DEBUG
+    Serial.print("LDR [Luminance]: ");
+    Serial.println(luxLdr);
+  #endif
+
+  return luxLdr;
+}
+
+
