@@ -21,22 +21,23 @@ bool streamStatus = false;
 long laststart;
 char port[10];
 
+//For most of the commands
 float lerfloat(){
     return 0.0;
 }
 
-int lerint(){
-    return 0;
-}
 
+//used in g s <i> to get the state
 bool lerbool(){
     return true;
 }
 
+// for when asking for the time
 long lerlong(){
     return 0;
 }
 
+// to test command b <x> <i>
 void getvalues(char* temp){
     temp[0]='1';
     temp[1]=';';
@@ -44,6 +45,7 @@ void getvalues(char* temp){
     temp[3]='\n';
 }
 
+//for comand r reset all values
 void resetvalues(){
     
 }
