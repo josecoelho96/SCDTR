@@ -10,7 +10,7 @@
 #include <boost/bind.hpp>
 #include <boost/asio.hpp>
 
-
+#include <thread>
 #include <time.h>
 
 
@@ -19,6 +19,7 @@ using boost::system::error_code;
 
 bool streamStatus = false;
 long laststart;
+char port[10];
 
 class session {
     ip::tcp::socket s;
@@ -174,18 +175,30 @@ class server {
     
 public:
     server(io_service& io, short port): io(io), acc(io, ip::tcp::endpoint(ip::tcp::v4(), port)) {
+        
         start_accept();
     }
 };
 
+void startserver(){
+    std::cout<< "Server Thread created!" << '\n';
+    io_service io;
+    server s(io, std::atoi(port));
+    std::cout<< "Server running in port:" << port << "with IP:" << ip::address_v4() << '\n';
+    io.run();
+}
 
 
 int main(int argc, char* argv[]) {
     if (argc != 2) {
         std::cerr << "Usage: server <port>\n"; return 1; }
-    io_service io;
+    std::cout<< "Starting!" << '\n';
+    strcpy(port,argv[1]);
     laststart =  time(0);
-    std::cout << "Last Started:" << laststart << '\n';
-    server s(io, std::atoi(argv[1]));
-    io.run();
+    std::thread tcpserver(startserver);
+    //std::thread i2c{};
+    tcpserver.join();
+    //i2c.join();
+    std::cout<< "Finished" << '\n';
 }
+
