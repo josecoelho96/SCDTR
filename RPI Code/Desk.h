@@ -4,6 +4,9 @@
 #include <list>
 #include <time.h>
 #include<sys/time.h>
+#include <iostream>
+#include <stdio.h>
+#include <stdlib.h>
 
 
 class Tupple{
@@ -11,6 +14,10 @@ private:
     long time;
     float valuetosave;
 public:
+    
+    Tupple(){
+       
+    }
     Tupple(float receivedvalue){
 
         this->setValue(receivedvalue);
@@ -101,16 +108,21 @@ void setil_External( float o){
 
 // set energy
 void setEnergy(){
-
+    Tupple *auxt;
     float aux;
+    bool first = true;
     aux = 0;
-    /*
-    if (this->time.size() > 1){
-        for ( int i=1; i< this->time.size(); i++){
-            aux = aux + this->dimming.get(i-1)*(this->time.get(i)-this->time.get(i-1));
+    
+    if (this->dimming.size() > 1){
+        for (this->it = this->dimming.begin(); this->it != this->dimming.end(); ++this->it){
+            if (first == false) {
+                aux = aux + auxt->getValue()*(this->it->getTime()-auxt->getTime());
+            }
+            *auxt = *(this->it);
+            
         }
     }
-    */
+    
     this->Energy = aux;
 }
 
@@ -120,19 +132,20 @@ void setConfortError(){
     float aux1, aux2, aux3;
     aux1 = 0;
     aux2 = 0;
-/*
-    for ( int i=0; i<this->time.size(); i++){
+
+ for (this->it = this->il_ControlRef.begin(); this->it != this->il_ControlRef.end(); ++this->it){
+        /*
         if ((this->il_ControlRef.get(i)-this->iluminance.get(i)) > 0){
             aux1 = this->il_ControlRef.get(i);
         }
         else{
             aux1 = 0;
-        }
+        }*/
 
         aux2 = aux2 + aux1;
     }
 
-    aux2 = aux2/this->time.size();*/
+    //aux2 = aux2/this->time.size();*/
 
     this->ConfortError = aux2;
 }
@@ -144,17 +157,21 @@ void setConfortFlicker(){
     aux = 0;
     float f;
     f =0;
-    /*
-    if (this->time.size() > 2){
-        for ( int i=2; i<this->time.size(); i++){
-            if ((this->iluminance.get(i)-this->iluminance.get(i-1))*(this->iluminance.get(i-1)-this->iluminance.get(i-2)) < 0){
-                f = abs(long(this->iluminance.get(i)-this->iluminance.get(i-1)))+abs(long(this->iluminance.get(i-1)-this->iluminance.get(i-2)))/(2*0.000031875);
-            }    
+    
+    
+    if (this->iluminance.size() > 2){
+        
+        for (this->it = this->iluminance.begin(); this->it != this->iluminance.end(); ++this->it){
+            
+            /*if ((this->it.getValue()-(this->it).getValue())*(this->it.getValue()-this->it.getValue()) < 0){
+                
+                f = abs(long(this->it.getValue()-this->it).getValue()))+abs(long(this->it).getValue()-this->it).getValue()))/(2*0.000031875);
+            }    */
             aux = aux + f;
         }
     }
 
-    aux = aux/this->time.size();*/
+    //aux = aux/this->time.size();
 
     this->ConfortFlicker = aux;
 }
@@ -219,41 +236,41 @@ float getConfortFlicker(){
 
 void getLastLuminance(char* temp){
     int counter = 0;
+    char auxstr[25];
     struct timeval tv;
     gettimeofday(&tv,NULL);
 
 
-    for (this->it = this->iluminance.begin(); this->it != this->iluminance.end() || this->it->getTime()<(((long)tv.tv_sec+60)*1000)+(tv.tv_usec/1000); ++this->it) {
-        temp[counter]=this->it->getValue();
-        counter++;
-        temp[counter]=';';
-        counter++;
-        temp[counter]=this->it->getTime();
-        counter++;
-        temp[counter]=';';
-        counter++;
+    for (this->it = this->iluminance.begin(); this->it != this->iluminance.end() && this->it->getTime()<(((long)tv.tv_sec+60)*1000)+(tv.tv_usec/1000); ++this->it) {
+        sprintf(auxstr,"%f;%ld;",this->it->getValue(),this->it->getTime());
+        strcat(temp,auxstr);
+        counter+=strlen(auxstr);
     }
-        temp[counter-1]='\n';
-    
+    sprintf(auxstr,"\n");
+    strcat(temp,auxstr);
+    temp[counter+1]='\n';
+    printf("%d=%c",counter,temp[counter+1]);
+    temp[counter+2]='\0';
 }
     
 void getLastDimming(char* temp){
     int counter = 0;
+    char auxstr[25];
     struct timeval tv;
     gettimeofday(&tv,NULL);
     
     
-    for (this->it = this->dimming.begin(); this->it != this->dimming.end() || this->it->getTime()<(((long)tv.tv_sec+60)*1000)+(tv.tv_usec/1000); ++this->it) {
-        temp[counter]=this->it->getValue();
-        counter++;
-        temp[counter]=';';
-        counter++;
-        temp[counter]=this->it->getTime();
-        counter++;
-        temp[counter]=';';
-        counter++;
+    for (this->it = this->dimming.begin(); this->it != this->dimming.end() && this->it->getTime()<(((long)tv.tv_sec+60)*1000)+(tv.tv_usec/1000); ++this->it) {
+        sprintf(auxstr,"%f;%ld;",this->it->getValue(),this->it->getTime());
+        strcat(temp,auxstr);
+        counter+=strlen(auxstr);
     }
-    temp[counter-1]='\n';
+    sprintf(auxstr,"\n");
+    strcat(temp,auxstr);
+    temp[counter+1]='\n';
+    printf("%d=%c",counter,temp[counter+1]);
+    temp[counter+2]='\0';
+    
     
 }
     

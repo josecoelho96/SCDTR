@@ -23,6 +23,7 @@ Desk findID(int id){
 }
 
 int main() {
+    char msg[100];
     Desk *aux;
     for (int i = 1; i<= 10; i++) {
         aux = new Desk(i);
@@ -38,7 +39,10 @@ int main() {
     }
     
     findID(2);
+    it->getLastLuminance(msg);
     std::cout << "ID found: " << it->getID() << " value " << it->getIluminance().getValue() << " time " << it->getIluminance().getTime() <<'\n';
+    std::cout << msg << '\n';
+    std::cout << "Bye\n";
     return 0;
     
 }
