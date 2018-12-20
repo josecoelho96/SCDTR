@@ -130,10 +130,12 @@ void setEnergy(){
 void setConfortError(){
     std::list<Tupple>::iterator it2;
     float aux1, aux2, aux3;
+    long time_int, time_fin;
     aux1 = 0;
     aux2 = 0;
     it2 = this->iluminance.begin();
     ++it2;
+    time_int = it2->getTime();
      for (this->it = this->il_ControlRef.begin(); this->it != this->il_ControlRef.end(); ++this->it){
          
             if ((this->it->getValue()-(it2->getValue())) > 0){
@@ -143,6 +145,7 @@ void setConfortError(){
                 aux1 = 0;
             }
          if (it2 == this->iluminance.end()) {
+             time_fin = it2->getTime();
              ++it2;
          } else {
              break;
@@ -151,28 +154,40 @@ void setConfortError(){
             aux2 = aux2 + aux1;
         }
     
-        //aux2 = aux2/this->time.size();*/
+    aux2 = aux2/(time_fin-time_int);
 
     this->ConfortError = aux2;
 }
 
 // Set confort flicker
 void setConfortFlicker(){
-    
-    float aux;
-    aux = 0;
-    float f;
-    f =0;
+    Tupple *auxt1, *auxt2;
+    bool first = true, second = false;
+    float aux = 0;
+    long time_int, time_fin;
+    float f = 0;
+
     
     
     if (this->iluminance.size() > 2){
         
         for (this->it = this->iluminance.begin(); this->it != this->iluminance.end(); ++this->it){
-            
-            /*if ((this->it.getValue()-(this->it).getValue())*(this->it.getValue()-this->it.getValue()) < 0){
+            if (first) {
+                time_int=this->it->getTime();
+                *auxt1 = *(this->it);
+            } else if (second){
+                *auxt1 = *auxt2;
+                *auxt1 = *(this->it);
+            } else {
+                /*if ((this->it.getValue()-(this->it).getValue())*(this->it.getValue()-this->it.getValue()) < 0){
+                 /*
+                 f = abs(long(this->it.getValue()-this->it).getValue()))+abs(long(this->it).getValue()-this->it).getValue()))/(2*0.000031875);
+                 */
+                 //}
                 
-                f = abs(long(this->it.getValue()-this->it).getValue()))+abs(long(this->it).getValue()-this->it).getValue()))/(2*0.000031875);
-            }    */
+                time_fin=this->it->getTime();
+            }
+            
             aux = aux + f;
         }
     }
