@@ -26,6 +26,7 @@ int main() {
     Desk *aux;
     for (int i = 1; i<= 10; i++) {
         aux = new Desk(i);
+        
         lista.push_front(*aux);
     }
 

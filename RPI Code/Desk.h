@@ -2,39 +2,53 @@
 #define DESK_H
 
 #include <list>
+#include <time.h>
+#include<sys/time.h>
 
 
-
+class Tupple{
+    public:
+    long time;
+    float value;
+    
+    Tupple(float x){
+        struct timeval tv;
+        gettimeofday(&tv,NULL);
+        this->value = x;
+        this->time = (((long)tv.tv_sec)*1000)+(tv.tv_usec/1000);;
+    }
+};
 class Desk{
 private:
-    std::list<float> time;
-	std::list<float> iluminance;
-    std::list<float> dimming;
+	std::list<Tupple> iluminance;
+    std::list<Tupple> dimming;
+    std::list<Tupple> il_ControlRef;
     float duty_cicle;
     bool OccupancyState;
     float il_LowerBound;
     float il_External;
-    std::list<float> il_ControlRef;
+
     float Energy;
     float ConfortError;
     float ConfortFlicker;
     int id;
 
 public:/*
-	Desk(int aux);
-    void setDutyCicle(float duty);
-    void setOccupancyState(float state);
-    void setil_LowerBound(float L);
-    void setil_External(float o);
     void setEnergy();
     void setConfortError();
     void setConfortFlicker();
-    void setTime(float t);
-    void setIluminance(float l);
-    void setDimming(float d);
-    void setControlRef(float ref);
     
-    float getDutyCicle();
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        float getDutyCicle();
     bool getOccupancyState();
     float getil_LowerBound();
     float getil_External();
@@ -51,7 +65,7 @@ public:/*
 
 //Constructor
 Desk(int aux) {
-	
+    Tupple *auxt;
 	this->id = aux;
     this->duty_cicle = 0;
     this->OccupancyState = 0;
@@ -60,14 +74,14 @@ Desk(int aux) {
     this->Energy = 0;
     this->ConfortError = 0;
     this->ConfortFlicker = 0;
-    //this->il_ControlRef = new std::list();
-    this->il_ControlRef.push_back(0);
-    //this->time = new std::list();
-    this->time.push_back(0);
-    //this->iluminance = new std::list();
-    this->iluminance.push_back(0);
-    //this->dimming =  new std::list();
-    this->dimming.push_back(0);
+    
+    auxt = new Tupple(0.0);
+    this->il_ControlRef.push_back(*auxt);
+    
+    auxt = new Tupple(0.0);
+    this->iluminance.push_back(*auxt);
+    auxt = new Tupple(0.0);
+    this->dimming.push_back(*auxt);
     
 }
 
@@ -78,7 +92,7 @@ void setDutyCicle(float duty){
 }
 
 // set occupancy state
-void setOccupancyState( float state){
+void setOccupancyState( bool state){
 
     this->OccupancyState = state;
 }
@@ -127,8 +141,8 @@ void setConfortError(){
 
         aux2 = aux2 + aux1;
     }
-*/
-    aux2 = aux2/this->time.size();
+
+    aux2 = aux2/this->time.size();*/
 
     this->ConfortError = aux2;
 }
@@ -149,34 +163,32 @@ void setConfortFlicker(){
             aux = aux + f;
         }
     }
-*/
-    aux = aux/this->time.size();
+
+    aux = aux/this->time.size();*/
 
     this->ConfortFlicker = aux;
 }
 
-// set time
-void setTime(float t){
-    
-    this->time.push_back(t);
-}
 
 // set Iluminance
 void setIluminance(float l){
-    
-    this->iluminance.push_back(l);
+    Tupple *aux;
+    aux = new Tupple(0);
+    this->iluminance.push_back(*aux);
 }
 
 // set Dimming
 void setDimming(float d){
-    
-    this->dimming.push_back(d);
+    Tupple *aux;
+    aux = new Tupple(d);
+    this->dimming.push_back(*aux);
 }
 
 // set iluminance control reference
 void setControlRef(float ref){
-    
-    this->il_ControlRef.push_back(ref);
+    Tupple *aux;
+    aux = new Tupple(ref);
+    this->il_ControlRef.push_back(*aux);
 }
 
 // get duty cicle
@@ -214,17 +226,10 @@ float getConfortFlicker(){
     return this->ConfortFlicker;
 }
 
-// get time
-float getTime(){
-
-    int n = this->time.size();
-    return this->time.back();
-}
 
 // get iluminance
-float getIluminance(){
+Tupple getIluminance(){
 
-    int n = this->iluminance.size();
     return this->iluminance.back();
 }
 
@@ -235,15 +240,13 @@ int getID(){
 
 
 // get iluminance
-float getDimming(){
+Tupple getDimming(){
 
-    int n = this->dimming.size();
     return this->dimming.back();
 }
 
 // get iluminance control ref
-float getControlRef(){
-    int n = this->il_ControlRef.size();
+Tupple getControlRef(){
     return this->il_ControlRef.back();
 
 }

@@ -340,12 +340,45 @@ int starti2c(){
                     break;
                 case MT_STATE:
                     printf("MT_STATE from %d\n",xfer.rxBuf[0]);
+                    if(xfer.rxCnt > 3){
+                        findID((int)xfer.rxBuf[0]).setOccupancyState((bool)xfer.rxBuf[3]);
+                    }
                     break;
                 case MT_BRIGHTNESS:
                     printf("MT_BRIGHTNESS from %d\n",xfer.rxBuf[0]);
+                    if(xfer.rxCnt > 5 && xfer.rxBuf[2]==4){
+                        findID((int)xfer.rxBuf[0]).setDutyCicle(bytestofloat(xfer.rxBuf[3],xfer.rxBuf[4],xfer.rxBuf[5],xfer.rxBuf[6]));
+                    }
                     break;
                 case MT_LUX:
                     printf("MT_LUX from %d\n",xfer.rxBuf[0]);
+                    if(xfer.rxCnt > 5 && xfer.rxBuf[2]==4){
+                        findID((int)xfer.rxBuf[0]).setIluminance(bytestofloat(xfer.rxBuf[3],xfer.rxBuf[4],xfer.rxBuf[5],xfer.rxBuf[6]));
+                    }
+                    break;
+                case MT_LOWER_BOUND:
+                    printf("MT_LUX from %d\n",xfer.rxBuf[0]);
+                    if(xfer.rxCnt > 5 && xfer.rxBuf[2]==4){
+                        findID((int)xfer.rxBuf[0]).setil_LowerBound(bytestofloat(xfer.rxBuf[3],xfer.rxBuf[4],xfer.rxBuf[5],xfer.rxBuf[6]));
+                    }
+                    break;
+                case MT_EXTERNAL:
+                    printf("MT_LUX from %d\n",xfer.rxBuf[0]);
+                    if(xfer.rxCnt > 5 && xfer.rxBuf[2]==4){
+                        findID((int)xfer.rxBuf[0]).setil_External(bytestofloat(xfer.rxBuf[3],xfer.rxBuf[4],xfer.rxBuf[5],xfer.rxBuf[6]));
+                    }
+                    break;
+                case MT_CONTROLLER_REF:
+                    printf("MT_LUX from %d\n",xfer.rxBuf[0]);
+                    if(xfer.rxCnt > 5 && xfer.rxBuf[2]==4){
+                        findID((int)xfer.rxBuf[0]).setControlRef(bytestofloat(xfer.rxBuf[3],xfer.rxBuf[4],xfer.rxBuf[5],xfer.rxBuf[6]));
+                    }
+                    break;
+                case MT_DIMMING:
+                    printf("MT_LUX from %d\n",xfer.rxBuf[0]);
+                    if(xfer.rxCnt > 5 && xfer.rxBuf[2]==4){
+                        findID((int)xfer.rxBuf[0]).setDimming(bytestofloat(xfer.rxBuf[3],xfer.rxBuf[4],xfer.rxBuf[5],xfer.rxBuf[6]));
+                    }
                     break;
                 case MT_REQUEST_FOR_CALIBRATION:
                     printf("REQUEST_FOR_CALIBRATION from %d\n",xfer.rxBuf[0]);

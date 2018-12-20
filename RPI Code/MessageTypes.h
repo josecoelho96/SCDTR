@@ -9,6 +9,14 @@
 #define MT_STATE 4
 #define MT_BRIGHTNESS 5
 #define MT_LUX 6
+#define MT_LOWER_BOUND 7
+#define MT_EXTERNAL 8
+#define MT_CONTROLLER_REF 9
+#define MT_DIMMING 75
+
+
+
+
 
 #define MT_REQUEST_FOR_CALIBRATION 10
 #define MT_CALIBRATION_LED_ON 11
