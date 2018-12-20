@@ -13,7 +13,6 @@
 #include <list>
 #include "Desk.h"
 std::list<Desk> lista;
-std::list<int>::iterator it;
 //=======================DATA=================================
 
 //=======================I2C==================================
@@ -363,8 +362,8 @@ int starti2c(){
                 case MT_REQUEST_JOIN_NETWORK:
                     printf("REQUEST_JOIN_NETWORK from %d\n",xfer.rxBuf[0]);
                     aux = new Desk((int)xfer.rxBuf[0]);
-                    lista.push_back(*aux);
-                    std::cout << "Id from list: " << lista.back().getID() << '\n';
+                    lista.push_front(*aux);
+                    std::cout << "Id from list: " << lista.front().getID() << '\n';
                     break;
                 case MT_REQUEST_JOIN_NETWORK_REPLY_OK:
                     printf("REQUEST_JOIN_NETWORK_REPLY_OK from %d\n",xfer.rxBuf[0]);
@@ -479,7 +478,19 @@ int main(int argc, char* argv[]) {
 //=======================DATA=================================
 
 
-
+Desk findID(int id){
+    
+    std::list<Desk>::iterator it;
+    std::cout << "Searching for ID: " << id <<'\n';
+    for (it = lista.begin(); it != lista.end(); ++it) {
+        std::cout << "ID: " << it->getID() << '\n';
+        if (it->getID() == id) {
+            break;
+        }
+    }
+    
+    return *it;
+}
 
 
 
