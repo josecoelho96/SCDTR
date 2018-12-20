@@ -58,14 +58,6 @@ volatile int terminate = 0;
 
 
 
-// to test command b <x> <i>
-void getvalues(char* temp){
-    temp[0]='1';
-    temp[1]=';';
-    temp[2]='2';
-    temp[3]='\n';
-}
-
 //for comand r reset all values
 void resetvalues(){
     for (it = lista.begin(); it != lista.end(); ++it) {
@@ -107,54 +99,92 @@ class session {
                         sscanf(data,"%c %c %d",&a, &b, &c);
                         std::cout << "Get current measured illuminance at desk " << c << ".\n";
                         findID(c);
-                        sprintf(msg,"I %d %f\n",c, it->getIluminance());
+                        if(it != lista.end()){
+                            sprintf(msg,"l %d %f\n",c, it->getIluminance());
+                        } else {
+                            sprintf(msg,"l %d luminaire not found!\n",c);
+                        }
+                        
                         break;
                     //DONE (Add correct function)
                     case 'd':
                         sscanf(data,"%c %c %d",&a, &b, &c);
                         std::cout << "Get current duty cycle at luminaire " << c << ".\n";
                         findID(c);
-                        sprintf(msg,"d %d %f\n",c, it->getDutyCicle());
+                        if(it != lista.end()){
+                            sprintf(msg,"d %d %f\n",c, it->getDutyCicle());
+                        } else {
+                            sprintf(msg,"d %d luminaire not found!\n",c);
+                        }
+                        
                         break;
                     //DONE (Add correct function)
                     case 's':
                         sscanf(data,"%c %c %d",&a, &b, &c);
                         std::cout << "Get current occupancy state at desk " << c << ".\n";
                         findID(c);
-                        sprintf(msg,"s %d %d\n",c, it->getOccupancyState());
+                        if(it != lista.end()){
+                            sprintf(msg,"s %d %d\n",c, it->getOccupancyState());
+                        } else {
+                            sprintf(msg,"s %d luminaire not found!\n",c);
+                        }
+                        
                         break;
                     //DONE (Add correct function)
                     case 'L':
                         sscanf(data,"%c %c %d",&a, &b, &c);
                         std::cout << "Get current illuminance lower bound at desk " << c << ".\n";
                         findID(c);
-                        sprintf(msg,"L %d %f\n",c, it->getil_LowerBound());
+                        if(it != lista.end()){
+                            sprintf(msg,"L %d %f\n",c, it->getil_LowerBound());
+                        } else {
+                            sprintf(msg,"L %d luminaire not found!\n",c);
+                        }
+                        
                         break;
                     //DONE (Add correct function)
                     case 'o':
                         sscanf(data,"%c %c %d",&a, &b, &c);
                         std::cout << "Get current external illuminance at desk " << c << ".\n";
                         findID(c);
-                        sprintf(msg,"o %d %f\n",c, it->getil_External());
+                        if(it != lista.end()){
+                            sprintf(msg,"o %d %f\n",c, it->getil_External());
+                        } else {
+                            sprintf(msg,"o %d luminaire not found!\n",c);
+                        }
+                        
                         break;
                     //DONE (Add correct function)
                     case 'r':
                         sscanf(data,"%c %c %d",&a, &b, &c);
                         std::cout << "Get current illuminance control reference at desk " << c<< ".\n";
                         findID(c);
-                        sprintf(msg,"r %d %f\n",c, it->getControlRef());
+                        if(it != lista.end()){
+                            sprintf(msg,"r %d %f\n",c, it->getControlRef());
+                        } else {
+                            sprintf(msg,"r %d luminaire not found!\n",c);
+                        }
+                        
                         break;
                     //DONE (Add correct function)
                     case 'p':
                         if (data[4] == 'T') {
                             sum = 0.0;
                             std::cout << "Get instantaneous total power consumption in  system.\n";
+                            for (it = lista.begin(); it != lista.end(); ++it) {
+                                sum+=it->getDimming();
+                            }
                             sprintf(msg,"p T %f\n",sum);
                         } else {
                             sscanf(data,"%c %c %d",&a, &b, &c);
                             std::cout << "Get instantaneous power consumption at desk " << c << ".\n";
                             findID(c);
-                            sprintf(msg,"p %d %f\n",c, it->getDimming());
+                            if(it != lista.end()){
+                                sprintf(msg,"p %d %f\n",c, it->getDimming());
+                            } else {
+                                sprintf(msg,"p %d luminaire not found!\n",c);
+                            }
+                            
                         }
                         break;
                     //DONE
@@ -170,6 +200,7 @@ class session {
                             sum = 0.0;
                             std::cout << "Get total accumulated energy consumption since last system restart.\n";
                             for (it = lista.begin(); it != lista.end(); ++it) {
+                                it->setEnergy();
                                 sum+=it->getEnergy();
                             }
                             sprintf(msg,"e T %f\n",sum);
@@ -178,6 +209,7 @@ class session {
                             std::cout << "Get accumulated energy consumption at desk " << c << " since the last system restart.\n";
                             findID(c);
                             if(it != lista.end()){
+                                it->setEnergy();
 								sprintf(msg,"e %d %f\n",c, it->getEnergy());
 							} else {
 								sprintf(msg,"e %d luminaire not found!\n",c);
@@ -191,6 +223,7 @@ class session {
                             sum = 0.0;
                             std::cout << "Get total comfort error since last system restart.\n";
                             for (it = lista.begin(); it != lista.end(); ++it) {
+                                it->setConfortError();
                                 sum+=it->getConfortError();
                             }
                             sprintf(msg,"c T %f\n",sum);
@@ -198,7 +231,13 @@ class session {
                             sscanf(data,"%c %c %d",&a, &b, &c);
                             std::cout << "Get accumulated comfort error at desk " <<c << " since last system restart.\n";
                             findID(c);
-                            sprintf(msg,"c %d %f\n",c, it->getConfortError());
+                            if(it != lista.end()){
+                                it->setConfortError();
+                                sprintf(msg,"c %d %f\n",c, it->getConfortError());
+                            } else {
+                                sprintf(msg,"c %d luminaire not found!\n",c);
+                            }
+                            
                             
                         }
                         break;
@@ -209,6 +248,7 @@ class session {
                             sum = 0.0;
                             std::cout << "Get total comfort flicker since last system restart.\n";
                             for (it = lista.begin(); it != lista.end(); ++it) {
+                                it->setConfortFlicker();
                                 sum+=it->getConfortFlicker();
                             }
                             sprintf(msg,"v T %f\n",sum);
@@ -216,7 +256,13 @@ class session {
                             sscanf(data,"%c %c %d",&a, &b, &c);
                             std::cout << "Get accumulated comfort flicker at desk <i> since last system restart.\n";
                             findID(c);
-                            sprintf(msg,"v %d %f\n",c, it->getConfortFlicker());
+                            if(it != lista.end()){
+                                it->setConfortFlicker();
+                                sprintf(msg,"v %d %f\n",c, it->getConfortFlicker());
+                            } else {
+                                sprintf(msg,"v %d luminaire not found!\n",c);
+                            }
+                            
                         }
                         break;
                     default:
@@ -236,13 +282,23 @@ class session {
             case 'b':
                 sscanf(data,"%c %c %d",&a, &b, &c);
                 std::cout << "Get last minute buffer of variable " << b << " of desk " << c << ".\n";
-                if (b == 'I') {
-                    getvalues(bbuffer);
-                    sprintf(msg,"b %c %d %s\n",b ,c, bbuffer);
+                if (b == 'l') {
+                    findID(c);
+                    if(it != lista.end()){
+                        getLastLuminance(bbuffer);
+                        sprintf(msg,"b %c %d %s\n",b ,c, bbuffer);
+                    } else {
+                        sprintf(msg,"b %c %d not found\n",b ,c);
+                    }
+                    
                 } else if (b == 'd') {
-                    getvalues(bbuffer);
-                    sprintf(msg,"b %c %d %s\n",b ,c, bbuffer);
-                } else {
+                    findID(c);
+                    if(it != lista.end()){
+                        getLastDimming(bbuffer);
+                        sprintf(msg,"b %c %d %s\n",b ,c, bbuffer);
+                    } else {
+                        sprintf(msg,"b %c %d not found\n",b ,c);
+                    }
                     sprintf(msg,"b %c isn't a valid command\n",b);
                 }
                 

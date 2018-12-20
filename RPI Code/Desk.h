@@ -52,19 +52,6 @@ private:
     int id;
 
 public:
-    /*
-    void setEnergy();
-    void setConfortError();
-    void setConfortFlicker();
-    */
-        
-        
-        
-        
-        
-    
-    
-
 
 //Constructor
 Desk(int aux) {
@@ -230,6 +217,48 @@ float getConfortFlicker(){
     return this->ConfortFlicker;
 }
 
+void getLastLuminance(char* temp){
+    int counter = 0;
+    struct timeval tv;
+    gettimeofday(&tv,NULL);
+    this->time = (((long)tv.tv_sec)*1000)+(tv.tv_usec/1000);
+
+
+    for (this->it = this->iluminance->begin(); this->it != this->iluminance->end() || this->it->getTime<(((long)tv.tv_sec+60)*1000)+(tv.tv_usec/1000); ; ++this->it) {
+        temp[counter]=this->it->getValue();
+        counter++;
+        temp[counter]=';';
+        counter++;
+        temp[counter]=this->it->getTime();
+        counter++;
+        temp[counter]=';';
+        counter++;
+    }
+        temp[counter-1]='\n';
+    
+}
+    
+void getLastDimming(char* temp){
+    int counter = 0;
+    struct timeval tv;
+    gettimeofday(&tv,NULL);
+    this->time = (((long)tv.tv_sec)*1000)+(tv.tv_usec/1000);
+    
+    for (this->it = this->dimming->begin(); this->it != this->dimming->end() || this->it->getTime<(((long)tv.tv_sec+60)*1000)+(tv.tv_usec/1000); ; ++this->it) {
+        temp[counter]=this->it->getValue();
+        counter++;
+        temp[counter]=';';
+        counter++;
+        temp[counter]=this->it->getTime();
+        counter++;
+        temp[counter]=';';
+        counter++;
+    }
+    temp[counter-1]='\n';
+    
+}
+    
+    
 void reset(){
     this->Energy = 0;
     this->ConfortError = 0;
