@@ -14,6 +14,19 @@
 #include "Desk.h"
 std::list<Desk> lista;
 std::list<Desk>::iterator it;
+
+Desk findID(int id){
+    
+    //std::cout << "Searching for ID: " << id <<'\n';
+    for (it = lista.begin(); it != lista.end(); ++it) {
+        //std::cout << "ID: " << it->getID() << '\n';
+        if (it->getID() == id) {
+            break;
+        }
+    }
+    
+    return *it;
+}
 //=======================DATA=================================
 
 //=======================I2C==================================
@@ -141,7 +154,7 @@ class session {
                             sscanf(data,"%c %c %d",&a, &b, &c);
                             std::cout << "Get instantaneous power consumption at desk " << c << ".\n";
                             findID(c);
-                            sprintf(msg,"p %d %f\n",c, it->getDiming());
+                            sprintf(msg,"p %d %f\n",c, it->getDimming());
                         }
                         break;
                     //DONE
@@ -164,7 +177,11 @@ class session {
                             sscanf(data,"%c %c %d",&a, &b, &c);
                             std::cout << "Get accumulated energy consumption at desk " << c << " since the last system restart.\n";
                             findID(c);
-                            sprintf(msg,"e %d %f\n",c, it->getEnergy());
+                            if(it != lista.end()){
+								sprintf(msg,"e %d %f\n",c, it->getEnergy());
+							} else {
+								sprintf(msg,"e %d luminaire not found!\n",c);
+							}
                             
                         }
                         break;
@@ -373,30 +390,30 @@ int starti2c(){
                     }
                     break;
                 case MT_LOWER_BOUND:
-                    printf("MT_LUX from %d\n",xfer.rxBuf[0]);
+                    printf("MT_LOWER_BOUND from %d\n",xfer.rxBuf[0]);
                     if(xfer.rxCnt > 5 && xfer.rxBuf[2]==4){
                         findID((int)xfer.rxBuf[0]);
                         it->setil_LowerBound(bytestofloat(xfer.rxBuf[3],xfer.rxBuf[4],xfer.rxBuf[5],xfer.rxBuf[6]));
                     }
                     break;
                 case MT_EXTERNAL:
-                    printf("MT_LUX from %d\n",xfer.rxBuf[0]);
+                    printf("MT_EXTERNAL from %d\n",xfer.rxBuf[0]);
                     if(xfer.rxCnt > 5 && xfer.rxBuf[2]==4){
-                        findID((int)xfer.rxBuf[0])
+                        findID((int)xfer.rxBuf[0]);
                         it->setil_External(bytestofloat(xfer.rxBuf[3],xfer.rxBuf[4],xfer.rxBuf[5],xfer.rxBuf[6]));
                     }
                     break;
                 case MT_CONTROLLER_REF:
-                    printf("MT_LUX from %d\n",xfer.rxBuf[0]);
+                    printf("MT_CONTROLLER_REF from %d\n",xfer.rxBuf[0]);
                     if(xfer.rxCnt > 5 && xfer.rxBuf[2]==4){
                         findID((int)xfer.rxBuf[0]);
                         it->setControlRef(bytestofloat(xfer.rxBuf[3],xfer.rxBuf[4],xfer.rxBuf[5],xfer.rxBuf[6]));
                     }
                     break;
                 case MT_DIMMING:
-                    printf("MT_LUX from %d\n",xfer.rxBuf[0]);
+                    printf("MT_DIMMING from %d\n",xfer.rxBuf[0]);
                     if(xfer.rxCnt > 5 && xfer.rxBuf[2]==4){
-                        findID((int)xfer.rxBuf[0])
+                        findID((int)xfer.rxBuf[0]);
                         it->setDimming(bytestofloat(xfer.rxBuf[3],xfer.rxBuf[4],xfer.rxBuf[5],xfer.rxBuf[6]));
                     }
                     break;
@@ -530,18 +547,7 @@ int main(int argc, char* argv[]) {
 //=====================GENERAL================================
 //=======================DATA=================================
 
-Desk findID(int id){
-    
-    //std::cout << "Searching for ID: " << id <<'\n';
-    for (it = lista.begin(); it != lista.end(); ++it) {
-        //std::cout << "ID: " << it->getID() << '\n';
-        if (it->getID() == id) {
-            break;
-        }
-    }
-    
-    return *it;
-}
+
 
 
 
