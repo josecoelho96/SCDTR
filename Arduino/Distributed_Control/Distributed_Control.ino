@@ -65,7 +65,7 @@ const int lightSensor = A0;
 // ================================== PINOUT ==================================
 
 // ============================== GLOBAL SETTINGS =============================
-const int MAX_NODES = 3; // Defined the max number of nodes
+const int MAX_NODES = 3; // Defined the max number of nodes (neighbours)
 const int TIMEOUT = 2000; // ms
 const int CALIBRATION_LED_ON_TIME_MIN_TIME = 1000; //ms
 const int CALIBRATION_LED_ON_TIME = 3000; //ms
@@ -73,13 +73,14 @@ const int CALIBRATION_LDR_READS = 100;
 // ============================== GLOBAL SETTINGS =============================
 
 // =============================== NODE SETTINGS ==============================
-const byte address = 5;
+const byte address = 15;
 // =============================== NODE SETTINGS ==============================
 
-// =================================== FLAGS ==================================
 volatile int current_neighbour_nodes = 0;
 volatile byte neighbour_nodes_addresses[MAX_NODES];
+volatile float consensus_K[2]; // TODO: Only working for 2 nodes!
 
+// =================================== FLAGS ==================================
 volatile boolean f_send_network_full = false;
 volatile boolean f_node_already_on_network = false;
 volatile boolean f_send_joined_network = false;
@@ -247,22 +248,17 @@ void loop() {
       if (number_of_readings < CALIBRATION_LDR_READS) {
         k += getLDRLux();
         // sendValueFloat(MT_CALIBRATION_VALUE, k);
-        // Serial.println(k);
         number_of_readings++;
       } else {
         sendValueFloat(MT_CALIBRATION_VALUE, k/CALIBRATION_LDR_READS);
+        Serial.print("M");
+        Serial.println(k/CALIBRATION_LDR_READS);
+
+
         f_calibration_measure_ldr = false;
       }
     }
   }
-
-  Serial.print("L");
-  Serial.print("-");
-  Serial.print(f_calibration_mode);
-  Serial.print("-");
-  Serial.print(f_setup);
-  Serial.println("-");
-
 }
 
 void calibrate() {
@@ -355,6 +351,10 @@ void receiveData(int howMany) {
   // Serial.println("Recv data");
   byte header[3];
   int header_idx = 0;
+  byte msg_float[4];
+  float msg_value_f;
+  int msg_idx = 0;
+
   while (Wire.available()) {
     header[header_idx++] = Wire.read();
   }
@@ -419,6 +419,32 @@ void receiveData(int howMany) {
     f_calibration_next_light = false;
     f_calibration_led_on = false;
     f_calibration_need_to_light_led_on = false;
+  }
+
+  if (header[1] == MT_CALIBRATION_VALUE) {
+    // If on production, source address should be checked
+    // Get the next 4 bytes - Getting the data from the other node.
+    while (Wire.available()) {
+      msg_float[msg_idx++] = Wire.read();
+    }
+
+    Serial.print(msg_float[0]);
+    Serial.print("--");
+    Serial.print(msg_float[1]);
+    Serial.print("--");
+    Serial.print(msg_float[2]);
+    Serial.print("--");
+    Serial.print(msg_float[3]);
+    Serial.print("--");
+
+    *((int*)(&msg_value_f) + 3) = msg_float[3];
+    *((int*)(&msg_value_f) + 2) = msg_float[2];
+    *((int*)(&msg_value_f) + 1) = msg_float[1];
+    *((int*)(&msg_value_f) + 0) = msg_float[0];
+
+  Serial.print("R");
+  Serial.println(msg_value_f);
+  consensus_K[1] =  msg_value_f;
   }
 }
 
