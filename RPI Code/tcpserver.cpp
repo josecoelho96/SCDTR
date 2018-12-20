@@ -1,10 +1,5 @@
-//
-//  tcpserver.cpp
-//  
-//
-//  Created by David Teles on 18/12/2018.
-//
 
+//=======================SERVER===============================
 #include "tcpserver.hpp"
 #include <iostream>
 #include <boost/bind.hpp>
@@ -12,6 +7,14 @@
 
 #include <thread>
 #include <time.h>
+//=======================SERVER===============================
+
+//=======================DATA=================================
+#include <list>
+#include "Desk.h"
+std::list<Desk> lista;
+std::list<int>::iterator it;
+//=======================DATA=================================
 
 //=======================I2C==================================
 #include <stdio.h>
@@ -28,15 +31,17 @@
 int close_slave(bsc_xfer_t & xfer);
 int init_slave(bsc_xfer_t &xfer, int addr);
 int starti2c();
-float bytestofloat(int a,int b,int c, int d);
+float bytestofloat(unsigned char a,unsigned char b,unsigned char c, unsigned char d);
+
+
+int status, j;
+int key = 0;
+int handle;
+bsc_xfer_t xfer;
+volatile int terminate = 0;
 //=======================I2C==================================
 
-using namespace boost::asio;
-using boost::system::error_code;
-
-bool streamStatus = false;
-long laststart;
-char port[10];
+//=======================RANDOM===============================
 
 //For most of the commands
 float lerfloat(){
@@ -67,6 +72,16 @@ void resetvalues(){
     
 }
 
+//=======================RANDOM===============================
+
+//=======================SERVER===============================
+
+using namespace boost::asio;
+using boost::system::error_code;
+
+bool streamStatus = false;
+long laststart;
+char port[10];
 
 class session {
     ip::tcp::socket s;
@@ -276,13 +291,11 @@ void startserver(){
     io.run();
 }
         
-
-
+//=======================SERVER===============================
+//=======================I2C==================================
 int starti2c(){
 	std::cout<< "I2C Thread started!" << '\n';
-    int status, j;
-    int key = 0;
-    int handle;
+    
     int length = 12; //11 chars + \0
     char *message;
     
@@ -291,11 +304,13 @@ int starti2c(){
         return 1;
     }
     
-    bsc_xfer_t xfer;
-    status = init_slave(xfer, SLAVE_ADDR);
-    handle = i2cOpen(1, DESTINATION_ADDR, 0); /* Initialize */
     
-    while(1) {
+
+	status = init_slave(xfer, SLAVE_ADDR);
+	handle = i2cOpen(1, DESTINATION_ADDR, 0); /* Initialize */
+    Desk *aux;
+    
+    while(terminate == 0) {
         xfer.txCnt = 0;
         status = bscXfer(&xfer);
         //Message needs to have a minimum of 2 bytes
@@ -316,7 +331,7 @@ int starti2c(){
                     break;
                 case MT_CALIBRATION_VALUE:
 					if(xfer.rxCnt > 5 && xfer.rxBuf[2]==4){
-						printf("MT_CALIBRATION_VALUE  from d = %f\n",xfer.rxBuf[0], bytestofloat(xfer.rxBuf[3],xfer.rxBuf[4],xfer.rxBuf[5],xfer.rxBuf[6]));
+						printf("MT_CALIBRATION_VALUE  from %d = %f\n",xfer.rxBuf[0], bytestofloat(xfer.rxBuf[3],xfer.rxBuf[4],xfer.rxBuf[5],xfer.rxBuf[6]));
                     } else {
 						printf("Received %d non identified bytes\n", xfer.rxCnt);
 						for (j = 0; j < xfer.rxCnt; j++) {
@@ -347,6 +362,9 @@ int starti2c(){
                     break;
                 case MT_REQUEST_JOIN_NETWORK:
                     printf("REQUEST_JOIN_NETWORK from %d\n",xfer.rxBuf[0]);
+                    aux = new Desk((int)xfer.rxBuf[0]);
+                    lista.push_back(*aux);
+                    std::cout << "Id from list: " << lista.back().getID() << '\n';
                     break;
                 case MT_REQUEST_JOIN_NETWORK_REPLY_OK:
                     printf("REQUEST_JOIN_NETWORK_REPLY_OK from %d\n",xfer.rxBuf[0]);
@@ -356,12 +374,7 @@ int starti2c(){
                     break;
                 case MT_TODO:
                     printf("TODO from %d\n",xfer.rxBuf[0]);
-                    break;
-                case 254:
-                    
-                    break;
-                    
-                    
+                    break;   
                 default:
                           
 						printf("Received %d non identified bytes\n", xfer.rxCnt);
@@ -378,7 +391,7 @@ int starti2c(){
             xfer.rxBuf[0] = '\0';
         }
     }
-    
+    printf("Exiting I2C Code!\n");
     i2cClose(handle); /* close master */
     status = close_slave(xfer);
     gpioTerminate();
@@ -406,13 +419,13 @@ int init_slave(bsc_xfer_t &xfer, int addr) {
     return bscXfer(&xfer);
 }
 
-float bytestofloat(int a,int b,int c, int d){
+float bytestofloat(unsigned char a,unsigned char b,unsigned char c,unsigned char d){
 	float output;
-	*((int*)(&output) + 3) = a;
-	*((int*)(&output) + 2) = b;
-	*((int*)(&output) + 1) = c;
-	*((int*)(&output) + 0) = d;
-	
+	//printf("DATA:%d %d %d %d\n",a,b,c,d);
+	*((unsigned char*)(&output) + 3) = d;
+	*((unsigned char*)(&output) + 2) = c;
+	*((unsigned char*)(&output) + 1) = b;
+	*((unsigned char*)(&output) + 0) = a;
 	
 	return output;
 }
@@ -423,6 +436,27 @@ int close_slave(bsc_xfer_t & xfer) {
     return bscXfer(&xfer);
 }
 
+//=======================I2C==================================
+
+
+
+//=====================GENERAL================================
+void keyboard(){
+	std::cout<< "Press q to Exit!" << '\n';
+	char temp = '\0';
+	scanf("%c",&temp);
+	//std::cout<< "You pressed " << temp << '\n';
+	while(temp != 'q'){
+		std::cout<< "Press q to Exit!" << '\n';
+		scanf("%c",&temp);
+		//std::cout<< "You pressed " << temp << '\n'; 
+	}
+	std::cout<< "Exiting!" << '\n';
+	terminate = 1;
+	//i2cClose(handle); /* close master */
+    //status = close_slave(xfer);
+    //gpioTerminate();
+}
 
 
 int main(int argc, char* argv[]) {
@@ -433,8 +467,24 @@ int main(int argc, char* argv[]) {
     laststart =  time(0);
     std::thread tcpserver(startserver);
     std::thread i2c(starti2c);
+    std::thread toexit(keyboard);
+    toexit.join();
     tcpserver.join();
     i2c.join();
+
     std::cout<< "Finished" << '\n';
 }
+
+//=====================GENERAL================================
+//=======================DATA=================================
+
+
+
+
+
+
+
+
+//=======================DATA=================================
+
 
