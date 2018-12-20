@@ -7,6 +7,7 @@
 #include <iostream>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 
 class Tupple{
@@ -165,7 +166,7 @@ void setConfortFlicker(){
     bool first = true, second = false;
     float aux = 0;
     long time_int, time_fin;
-    float f = 0;
+    float f = 0, f1 = 0, f2 = 0;
 
     
     
@@ -176,23 +177,27 @@ void setConfortFlicker(){
                 time_int=this->it->getTime();
                 *auxt1 = *(this->it);
             } else if (second){
-                *auxt1 = *auxt2;
+                *auxt2 = *auxt1;
                 *auxt1 = *(this->it);
             } else {
-                /*if ((this->it.getValue()-(this->it).getValue())*(this->it.getValue()-this->it.getValue()) < 0){
-                 /*
-                 f = abs(long(this->it.getValue()-this->it).getValue()))+abs(long(this->it).getValue()-this->it).getValue()))/(2*0.000031875);
-                 */
-                 //}
+                if ((this->it->getValue()-(auxt1)->getValue())*((auxt1)->getValue()-(auxt2)->getValue()) < 0){
+                 
+                    f1 = this->it->getValue()-(auxt1)->getValue();
+                    f2 = auxt1->getValue() - auxt2->getValue();
+                    
+                    f = (abs((long)f1)+abs((long)f2))/(2*0.000031875);
+                 }
                 
                 time_fin=this->it->getTime();
+                *auxt2 = *auxt1;
+                *auxt1 = *(this->it);
             }
             
             aux = aux + f;
         }
     }
 
-    //aux = aux/this->time.size();
+    aux = aux/(time_fin-time_int);
 
     this->ConfortFlicker = aux;
 }

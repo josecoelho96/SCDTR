@@ -160,7 +160,7 @@ class session {
                         std::cout << "Get current illuminance control reference at desk " << c<< ".\n";
                         findID(c);
                         if(it != lista.end()){
-                            sprintf(msg,"r %d %f\n",c, it->getControlRef());
+                            sprintf(msg,"r %d %f\n",c, it->getControlRef().getValue());
                         } else {
                             sprintf(msg,"r %d luminaire not found!\n",c);
                         }
@@ -172,7 +172,7 @@ class session {
                             sum = 0.0;
                             std::cout << "Get instantaneous total power consumption in  system.\n";
                             for (it = lista.begin(); it != lista.end(); ++it) {
-                                sum+=it->getDimming();
+                                sum+=it->getDimming().getValue();
                             }
                             sprintf(msg,"p T %f\n",sum);
                         } else {
@@ -180,7 +180,7 @@ class session {
                             std::cout << "Get instantaneous power consumption at desk " << c << ".\n";
                             findID(c);
                             if(it != lista.end()){
-                                sprintf(msg,"p %d %f\n",c, it->getDimming());
+                                sprintf(msg,"p %d %f\n",c, it->getDimming().getValue());
                             } else {
                                 sprintf(msg,"p %d luminaire not found!\n",c);
                             }
@@ -285,7 +285,7 @@ class session {
                 if (b == 'l') {
                     findID(c);
                     if(it != lista.end()){
-                        getLastLuminance(bbuffer);
+                        it->getLastLuminance(bbuffer);
                         sprintf(msg,"b %c %d %s\n",b ,c, bbuffer);
                     } else {
                         sprintf(msg,"b %c %d not found\n",b ,c);
@@ -294,7 +294,8 @@ class session {
                 } else if (b == 'd') {
                     findID(c);
                     if(it != lista.end()){
-                        getLastDimming(bbuffer);
+                        it->getLastDimming(bbuffer);
+                        
                         sprintf(msg,"b %c %d %s\n",b ,c, bbuffer);
                     } else {
                         sprintf(msg,"b %c %d not found\n",b ,c);
