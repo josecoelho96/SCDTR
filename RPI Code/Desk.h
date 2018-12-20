@@ -128,24 +128,30 @@ void setEnergy(){
 
 // set confort error
 void setConfortError(){
-    
+    std::list<Tupple>::iterator it2;
     float aux1, aux2, aux3;
     aux1 = 0;
     aux2 = 0;
-
- for (this->it = this->il_ControlRef.begin(); this->it != this->il_ControlRef.end(); ++this->it){
-        /*
-        if ((this->il_ControlRef.get(i)-this->iluminance.get(i)) > 0){
-            aux1 = this->il_ControlRef.get(i);
+    it2 = this->iluminance.begin();
+    ++it2;
+     for (this->it = this->il_ControlRef.begin(); this->it != this->il_ControlRef.end(); ++this->it){
+         
+            if ((this->it->getValue()-(it2->getValue())) > 0){
+                aux1 = this->it->getValue();
+            }
+            else{
+                aux1 = 0;
+            }
+         if (it2 == this->iluminance.end()) {
+             ++it2;
+         } else {
+             break;
+         }
+         
+            aux2 = aux2 + aux1;
         }
-        else{
-            aux1 = 0;
-        }*/
-
-        aux2 = aux2 + aux1;
-    }
-
-    //aux2 = aux2/this->time.size();*/
+    
+        //aux2 = aux2/this->time.size();*/
 
     this->ConfortError = aux2;
 }
