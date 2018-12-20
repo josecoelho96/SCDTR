@@ -7,19 +7,37 @@
 
 
 class Tupple{
-    public:
+private:
     long time;
-    float value;
+    float valuetosave;
+public:
+    Tupple(float receivedvalue){
+
+        this->setValue(receivedvalue);
+        this->setTime();
+    }
     
-    Tupple(float x){
+    void setValue(float receivedvalue){
+        this->valuetosave = receivedvalue;
+    }
+    
+    void setTime(){
         struct timeval tv;
         gettimeofday(&tv,NULL);
-        this->value = x;
-        this->time = (((long)tv.tv_sec)*1000)+(tv.tv_usec/1000);;
+        this->time = (((long)tv.tv_sec)*1000)+(tv.tv_usec/1000);
+    }
+    
+    float getValue(){
+        return this->valuetosave;
+    }
+    
+    long getTime(){
+        return this->time;
     }
 };
 class Desk{
 private:
+    std::list<Tupple>::iterator it;
 	std::list<Tupple> iluminance;
     std::list<Tupple> dimming;
     std::list<Tupple> il_ControlRef;
@@ -33,33 +51,18 @@ private:
     float ConfortFlicker;
     int id;
 
-public:/*
+public:
+    /*
     void setEnergy();
     void setConfortError();
     void setConfortFlicker();
+    */
+        
+        
+        
+        
+        
     
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        float getDutyCicle();
-    bool getOccupancyState();
-    float getil_LowerBound();
-    float getil_External();
-    float getEnergy();
-    float getConfortError();
-    float getConfortFlicker();
-    float getTime();
-    float getIluminance();
-    float getDimming();
-    float getControlRef();
-    int getID();*/
     
 
 
@@ -76,12 +79,12 @@ Desk(int aux) {
     this->ConfortFlicker = 0;
     
     auxt = new Tupple(0.0);
-    this->il_ControlRef.push_back(*auxt);
+    this->il_ControlRef.push_front(*auxt);
     
     auxt = new Tupple(0.0);
-    this->iluminance.push_back(*auxt);
+    this->iluminance.push_front(*auxt);
     auxt = new Tupple(0.0);
-    this->dimming.push_back(*auxt);
+    this->dimming.push_front(*auxt);
     
 }
 
@@ -172,23 +175,24 @@ void setConfortFlicker(){
 
 // set Iluminance
 void setIluminance(float l){
-    Tupple *aux;
-    aux = new Tupple(0);
-    this->iluminance.push_back(*aux);
+    Tupple *aux2;
+    aux2 = new Tupple(l);
+    this->iluminance.push_front(*aux2);
+    //std::cout << "value received: " << l << " value saved: " << this->iluminance.front().getValue() << '\n';
 }
 
 // set Dimming
 void setDimming(float d){
     Tupple *aux;
     aux = new Tupple(d);
-    this->dimming.push_back(*aux);
+    this->dimming.push_front(*aux);
 }
 
 // set iluminance control reference
 void setControlRef(float ref){
     Tupple *aux;
     aux = new Tupple(ref);
-    this->il_ControlRef.push_back(*aux);
+    this->il_ControlRef.push_front(*aux);
 }
 
 // get duty cicle
@@ -226,11 +230,16 @@ float getConfortFlicker(){
     return this->ConfortFlicker;
 }
 
+void reset(){
+    this->Energy = 0;
+    this->ConfortError = 0;
+    this->ConfortFlicker = 0;
+}
 
 // get iluminance
 Tupple getIluminance(){
 
-    return this->iluminance.back();
+    return this->iluminance.front();
 }
 
 // get ID
@@ -242,13 +251,24 @@ int getID(){
 // get iluminance
 Tupple getDimming(){
 
-    return this->dimming.back();
+    return this->dimming.front();
 }
 
 // get iluminance control ref
 Tupple getControlRef(){
-    return this->il_ControlRef.back();
+    return this->il_ControlRef.front();
 
+}
+    
+Tupple findID(std::list<Tupple> *list){
+        
+        
+    //std::cout << "Searching for ID: " << id <<'\n';
+    for (this->it = list->begin(); this->it != list->end(); ++this->it) {
+     
+    }
+        
+    return *this->it;
 }
 };
 #endif

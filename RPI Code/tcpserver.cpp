@@ -13,6 +13,7 @@
 #include <list>
 #include "Desk.h"
 std::list<Desk> lista;
+std::list<Desk>::iterator it;
 //=======================DATA=================================
 
 //=======================I2C==================================
@@ -42,21 +43,7 @@ volatile int terminate = 0;
 
 //=======================RANDOM===============================
 
-//For most of the commands
-float lerfloat(){
-    return 0.0;
-}
 
-
-//used in g s <i> to get the state
-bool lerbool(){
-    return true;
-}
-
-// for when asking for the time
-long lerlong(){
-    return 0;
-}
 
 // to test command b <x> <i>
 void getvalues(char* temp){
@@ -68,7 +55,9 @@ void getvalues(char* temp){
 
 //for comand r reset all values
 void resetvalues(){
-    
+    for (it = lista.begin(); it != lista.end(); ++it) {
+        it->reset();
+    }
 }
 
 //=======================RANDOM===============================
@@ -95,55 +84,64 @@ class session {
         //Temporary variables
         char a,b;
         int c;
+        float sum = 0.0;
         //Check the flags and send info
         switch (data[0]) {
             case 'g':
                 switch (data[2]) {
                     //DONE (Add correct function)
-                    case 'I':
+                    case 'l':
                         sscanf(data,"%c %c %d",&a, &b, &c);
                         std::cout << "Get current measured illuminance at desk " << c << ".\n";
-                        sprintf(msg,"I %d %f\n",c, lerfloat());
+                        findID(c);
+                        sprintf(msg,"I %d %f\n",c, it->getIluminance());
                         break;
                     //DONE (Add correct function)
                     case 'd':
                         sscanf(data,"%c %c %d",&a, &b, &c);
                         std::cout << "Get current duty cycle at luminaire " << c << ".\n";
-                        sprintf(msg,"d %d %f\n",c, lerfloat());
+                        findID(c);
+                        sprintf(msg,"d %d %f\n",c, it->getDutyCicle());
                         break;
                     //DONE (Add correct function)
                     case 's':
                         sscanf(data,"%c %c %d",&a, &b, &c);
                         std::cout << "Get current occupancy state at desk " << c << ".\n";
-                        sprintf(msg,"s %d %d\n",c, lerbool());
+                        findID(c);
+                        sprintf(msg,"s %d %d\n",c, it->getOccupancyState());
                         break;
                     //DONE (Add correct function)
                     case 'L':
                         sscanf(data,"%c %c %d",&a, &b, &c);
                         std::cout << "Get current illuminance lower bound at desk " << c << ".\n";
-                        sprintf(msg,"L %d %f\n",c, lerfloat());
+                        findID(c);
+                        sprintf(msg,"L %d %f\n",c, it->getil_LowerBound());
                         break;
                     //DONE (Add correct function)
                     case 'o':
                         sscanf(data,"%c %c %d",&a, &b, &c);
                         std::cout << "Get current external illuminance at desk " << c << ".\n";
-                        sprintf(msg,"o %d %f\n",c, lerfloat());
+                        findID(c);
+                        sprintf(msg,"o %d %f\n",c, it->getil_External());
                         break;
                     //DONE (Add correct function)
                     case 'r':
                         sscanf(data,"%c %c %d",&a, &b, &c);
                         std::cout << "Get current illuminance control reference at desk " << c<< ".\n";
-                        sprintf(msg,"r %d %f\n",c, lerfloat());
+                        findID(c);
+                        sprintf(msg,"r %d %f\n",c, it->getControlRef());
                         break;
                     //DONE (Add correct function)
                     case 'p':
                         if (data[4] == 'T') {
+                            sum = 0.0;
                             std::cout << "Get instantaneous total power consumption in  system.\n";
-                            sprintf(msg,"p T %f\n",lerfloat());
+                            sprintf(msg,"p T %f\n",sum);
                         } else {
                             sscanf(data,"%c %c %d",&a, &b, &c);
                             std::cout << "Get instantaneous power consumption at desk " << c << ".\n";
-                            sprintf(msg,"p %d %f\n",c, lerfloat());
+                            findID(c);
+                            sprintf(msg,"p %d %f\n",c, it->getDiming());
                         }
                         break;
                     //DONE
@@ -156,24 +154,34 @@ class session {
                     //DONE (Add correct function)
                     case 'e':
                         if (data[4] == 'T') {
+                            sum = 0.0;
                             std::cout << "Get total accumulated energy consumption since last system restart.\n";
-                            sprintf(msg,"e T %f\n",lerfloat());
+                            for (it = lista.begin(); it != lista.end(); ++it) {
+                                sum+=it->getEnergy();
+                            }
+                            sprintf(msg,"e T %f\n",sum);
                         } else {
                             sscanf(data,"%c %c %d",&a, &b, &c);
                             std::cout << "Get accumulated energy consumption at desk " << c << " since the last system restart.\n";
-                            sprintf(msg,"e %d %f\n",c, lerfloat());
+                            findID(c);
+                            sprintf(msg,"e %d %f\n",c, it->getEnergy());
                             
                         }
                         break;
                     //DONE (Add correct function)
                     case 'c':
                         if (data[4] == 'T') {
+                            sum = 0.0;
                             std::cout << "Get total comfort error since last system restart.\n";
-                            sprintf(msg,"c T %f\n",lerfloat());
+                            for (it = lista.begin(); it != lista.end(); ++it) {
+                                sum+=it->getConfortError();
+                            }
+                            sprintf(msg,"c T %f\n",sum);
                         } else {
                             sscanf(data,"%c %c %d",&a, &b, &c);
                             std::cout << "Get accumulated comfort error at desk " <<c << " since last system restart.\n";
-                            sprintf(msg,"c %d %f\n",c, lerfloat());
+                            findID(c);
+                            sprintf(msg,"c %d %f\n",c, it->getConfortError());
                             
                         }
                         break;
@@ -181,12 +189,17 @@ class session {
                     case 'v':
                         strcpy(msg,"v\n");
                         if (data[4] == 'T') {
+                            sum = 0.0;
                             std::cout << "Get total comfort flicker since last system restart.\n";
-                            sprintf(msg,"v T %f\n",lerfloat());
+                            for (it = lista.begin(); it != lista.end(); ++it) {
+                                sum+=it->getConfortFlicker();
+                            }
+                            sprintf(msg,"v T %f\n",sum);
                         } else {
                             sscanf(data,"%c %c %d",&a, &b, &c);
                             std::cout << "Get accumulated comfort flicker at desk <i> since last system restart.\n";
-                            sprintf(msg,"v %d %f\n",c, lerfloat());
+                            findID(c);
+                            sprintf(msg,"v %d %f\n",c, it->getConfortFlicker());
                         }
                         break;
                     default:
@@ -225,7 +238,7 @@ class session {
                 if(streamStatus == false){
                     streamStatus = true;
                     std::cout << "Start stream of variable " << b << " of desk " << c << ".\n";
-                    sprintf(msg,"s %c %d %f %ld\n",b ,c , lerfloat(), lerlong());
+                    sprintf(msg,"s %c %d %f %ld\n",b ,c , 0.0, time(0));
 
                 } else {
                     std::cout << "Stop stream of variable " << b << " of desk " << c << ".\n";
@@ -341,43 +354,50 @@ int starti2c(){
                 case MT_STATE:
                     printf("MT_STATE from %d\n",xfer.rxBuf[0]);
                     if(xfer.rxCnt > 3){
-                        findID((int)xfer.rxBuf[0]).setOccupancyState((bool)xfer.rxBuf[3]);
+                        findID((int)xfer.rxBuf[0]);
+                        it->setOccupancyState((bool)xfer.rxBuf[3]);
                     }
                     break;
                 case MT_BRIGHTNESS:
                     printf("MT_BRIGHTNESS from %d\n",xfer.rxBuf[0]);
                     if(xfer.rxCnt > 5 && xfer.rxBuf[2]==4){
-                        findID((int)xfer.rxBuf[0]).setDutyCicle(bytestofloat(xfer.rxBuf[3],xfer.rxBuf[4],xfer.rxBuf[5],xfer.rxBuf[6]));
+                        findID((int)xfer.rxBuf[0]);
+                        it->setDutyCicle(bytestofloat(xfer.rxBuf[3],xfer.rxBuf[4],xfer.rxBuf[5],xfer.rxBuf[6]));
                     }
                     break;
                 case MT_LUX:
                     printf("MT_LUX from %d\n",xfer.rxBuf[0]);
                     if(xfer.rxCnt > 5 && xfer.rxBuf[2]==4){
-                        findID((int)xfer.rxBuf[0]).setIluminance(bytestofloat(xfer.rxBuf[3],xfer.rxBuf[4],xfer.rxBuf[5],xfer.rxBuf[6]));
+                        findID((int)xfer.rxBuf[0]);
+                        it->setIluminance(bytestofloat(xfer.rxBuf[3],xfer.rxBuf[4],xfer.rxBuf[5],xfer.rxBuf[6]));
                     }
                     break;
                 case MT_LOWER_BOUND:
                     printf("MT_LUX from %d\n",xfer.rxBuf[0]);
                     if(xfer.rxCnt > 5 && xfer.rxBuf[2]==4){
-                        findID((int)xfer.rxBuf[0]).setil_LowerBound(bytestofloat(xfer.rxBuf[3],xfer.rxBuf[4],xfer.rxBuf[5],xfer.rxBuf[6]));
+                        findID((int)xfer.rxBuf[0]);
+                        it->setil_LowerBound(bytestofloat(xfer.rxBuf[3],xfer.rxBuf[4],xfer.rxBuf[5],xfer.rxBuf[6]));
                     }
                     break;
                 case MT_EXTERNAL:
                     printf("MT_LUX from %d\n",xfer.rxBuf[0]);
                     if(xfer.rxCnt > 5 && xfer.rxBuf[2]==4){
-                        findID((int)xfer.rxBuf[0]).setil_External(bytestofloat(xfer.rxBuf[3],xfer.rxBuf[4],xfer.rxBuf[5],xfer.rxBuf[6]));
+                        findID((int)xfer.rxBuf[0])
+                        it->setil_External(bytestofloat(xfer.rxBuf[3],xfer.rxBuf[4],xfer.rxBuf[5],xfer.rxBuf[6]));
                     }
                     break;
                 case MT_CONTROLLER_REF:
                     printf("MT_LUX from %d\n",xfer.rxBuf[0]);
                     if(xfer.rxCnt > 5 && xfer.rxBuf[2]==4){
-                        findID((int)xfer.rxBuf[0]).setControlRef(bytestofloat(xfer.rxBuf[3],xfer.rxBuf[4],xfer.rxBuf[5],xfer.rxBuf[6]));
+                        findID((int)xfer.rxBuf[0]);
+                        it->setControlRef(bytestofloat(xfer.rxBuf[3],xfer.rxBuf[4],xfer.rxBuf[5],xfer.rxBuf[6]));
                     }
                     break;
                 case MT_DIMMING:
                     printf("MT_LUX from %d\n",xfer.rxBuf[0]);
                     if(xfer.rxCnt > 5 && xfer.rxBuf[2]==4){
-                        findID((int)xfer.rxBuf[0]).setDimming(bytestofloat(xfer.rxBuf[3],xfer.rxBuf[4],xfer.rxBuf[5],xfer.rxBuf[6]));
+                        findID((int)xfer.rxBuf[0])
+                        it->setDimming(bytestofloat(xfer.rxBuf[3],xfer.rxBuf[4],xfer.rxBuf[5],xfer.rxBuf[6]));
                     }
                     break;
                 case MT_REQUEST_FOR_CALIBRATION:
@@ -510,13 +530,11 @@ int main(int argc, char* argv[]) {
 //=====================GENERAL================================
 //=======================DATA=================================
 
-
 Desk findID(int id){
     
-    std::list<Desk>::iterator it;
-    std::cout << "Searching for ID: " << id <<'\n';
+    //std::cout << "Searching for ID: " << id <<'\n';
     for (it = lista.begin(); it != lista.end(); ++it) {
-        std::cout << "ID: " << it->getID() << '\n';
+        //std::cout << "ID: " << it->getID() << '\n';
         if (it->getID() == id) {
             break;
         }
