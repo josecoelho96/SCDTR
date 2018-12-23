@@ -127,7 +127,7 @@ void setEnergy(){
         }
     }
     
-    this->Energy = aux;
+    this->Energy = this->Energy + aux;
 }
 
 // set confort error
