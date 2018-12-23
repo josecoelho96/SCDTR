@@ -12,7 +12,7 @@
 #define MT_LOWER_BOUND 7
 #define MT_EXTERNAL 8
 #define MT_CONTROLLER_REF 9
-#define MT_DIMMING 75
+#define MT_DIMMING 51
 
 
 

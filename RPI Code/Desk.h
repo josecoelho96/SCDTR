@@ -30,9 +30,9 @@ public:
     }
     
     void setTime(){
-        struct timeval tv;
-        gettimeofday(&tv,NULL);
-        this->time = (((long)tv.tv_sec)*1000)+(tv.tv_usec/1000);
+        struct timespec tv;
+        clock_gettime( CLOCK_REALTIME, &tv );
+        this->time = (long)(uint64_t)tv.tv_sec * 1000 + (uint64_t)tv.tv_nsec / 1.0e6;
     }
     
     float getValue(){
@@ -110,16 +110,19 @@ void setil_External( float o){
 // set energy
 void setEnergy(){
     Tupple *auxt;
-    float aux;
+    float aux = 0;
     bool first = true;
-    aux = 0;
+
     
     if (this->dimming.size() > 1){
+        this->it = this->dimming.begin();
         for (this->it = this->dimming.begin(); this->it != this->dimming.end(); ++this->it){
             if (first == false) {
                 aux = aux + auxt->getValue()*(this->it->getTime()-auxt->getTime());
+                break;
             }
             *auxt = *(this->it);
+            first = false;
             
         }
     }
@@ -176,9 +179,11 @@ void setConfortFlicker(){
             if (first) {
                 time_int=this->it->getTime();
                 *auxt1 = *(this->it);
+                first = false;
             } else if (second){
                 *auxt2 = *auxt1;
                 *auxt1 = *(this->it);
+                second = false;
             } else {
                 if ((this->it->getValue()-(auxt1)->getValue())*((auxt1)->getValue()-(auxt2)->getValue()) < 0){
                  
@@ -208,6 +213,9 @@ void setIluminance(float l){
     Tupple *aux2;
     aux2 = new Tupple(l);
     this->iluminance.push_front(*aux2);
+    if(this->iluminance.size()>500){
+        this->iluminance.pop_back();
+    }
     //std::cout << "value received: " << l << " value saved: " << this->iluminance.front().getValue() << '\n';
 }
 
@@ -216,6 +224,9 @@ void setDimming(float d){
     Tupple *aux;
     aux = new Tupple(d);
     this->dimming.push_front(*aux);
+    if(this->dimming.size()>500){
+        this->dimming.pop_back();
+    }
 }
 
 // set iluminance control reference
@@ -223,6 +234,9 @@ void setControlRef(float ref){
     Tupple *aux;
     aux = new Tupple(ref);
     this->il_ControlRef.push_front(*aux);
+    if(this->il_ControlRef.size()>500){
+        this->il_ControlRef.pop_back();
+    }
 }
 
 // get duty cicle
@@ -269,13 +283,14 @@ void getLastLuminance(char* temp){
 
     for (this->it = this->iluminance.begin(); this->it != this->iluminance.end() && this->it->getTime()<(((long)tv.tv_sec+60)*1000)+(tv.tv_usec/1000); ++this->it) {
         sprintf(auxstr,"%f;%ld;",this->it->getValue(),this->it->getTime());
+        printf("%f;%ld;",this->it->getValue(),this->it->getTime());
         strcat(temp,auxstr);
         counter+=strlen(auxstr);
     }
-    sprintf(auxstr,"\n");
+    //sprintf(auxstr,"\n");
     strcat(temp,auxstr);
     temp[counter+1]='\n';
-    printf("%d=%c",counter,temp[counter+1]);
+    //printf("%d=%c",counter,temp[counter+1]);
     temp[counter+2]='\0';
 }
     
@@ -291,10 +306,10 @@ void getLastDimming(char* temp){
         strcat(temp,auxstr);
         counter+=strlen(auxstr);
     }
-    sprintf(auxstr,"\n");
+    //sprintf(auxstr,"\n");
     strcat(temp,auxstr);
     temp[counter+1]='\n';
-    printf("%d=%c",counter,temp[counter+1]);
+    //printf("%d=%c",counter,temp[counter+1]);
     temp[counter+2]='\0';
     
     

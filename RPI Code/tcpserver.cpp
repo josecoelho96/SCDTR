@@ -6,12 +6,16 @@
 #include <boost/asio.hpp>
 
 #include <thread>
+#include <mutex>
 #include <time.h>
 //=======================SERVER===============================
 
 //=======================DATA=================================
 #include <list>
 #include "Desk.h"
+
+std::mutex mtx;
+
 std::list<Desk> lista;
 std::list<Desk>::iterator it;
 
@@ -98,93 +102,104 @@ class session {
                     case 'l':
                         sscanf(data,"%c %c %d",&a, &b, &c);
                         std::cout << "Get current measured illuminance at desk " << c << ".\n";
+                        mtx.lock();
                         findID(c);
                         if(it != lista.end()){
                             sprintf(msg,"l %d %f\n",c, it->getIluminance());
                         } else {
                             sprintf(msg,"l %d luminaire not found!\n",c);
                         }
+                        mtx.unlock();
                         
                         break;
                     //DONE (Add correct function)
                     case 'd':
                         sscanf(data,"%c %c %d",&a, &b, &c);
                         std::cout << "Get current duty cycle at luminaire " << c << ".\n";
+                        mtx.lock();
                         findID(c);
                         if(it != lista.end()){
                             sprintf(msg,"d %d %f\n",c, it->getDutyCicle());
                         } else {
                             sprintf(msg,"d %d luminaire not found!\n",c);
                         }
+                        mtx.unlock();
                         
                         break;
                     //DONE (Add correct function)
                     case 's':
                         sscanf(data,"%c %c %d",&a, &b, &c);
                         std::cout << "Get current occupancy state at desk " << c << ".\n";
+                        mtx.lock();
                         findID(c);
                         if(it != lista.end()){
                             sprintf(msg,"s %d %d\n",c, it->getOccupancyState());
                         } else {
                             sprintf(msg,"s %d luminaire not found!\n",c);
                         }
-                        
+                        mtx.unlock();
                         break;
                     //DONE (Add correct function)
                     case 'L':
                         sscanf(data,"%c %c %d",&a, &b, &c);
                         std::cout << "Get current illuminance lower bound at desk " << c << ".\n";
+                        mtx.lock();
                         findID(c);
                         if(it != lista.end()){
                             sprintf(msg,"L %d %f\n",c, it->getil_LowerBound());
                         } else {
                             sprintf(msg,"L %d luminaire not found!\n",c);
                         }
-                        
+                        mtx.unlock();
                         break;
                     //DONE (Add correct function)
                     case 'o':
                         sscanf(data,"%c %c %d",&a, &b, &c);
                         std::cout << "Get current external illuminance at desk " << c << ".\n";
+                        mtx.lock();
                         findID(c);
                         if(it != lista.end()){
                             sprintf(msg,"o %d %f\n",c, it->getil_External());
                         } else {
                             sprintf(msg,"o %d luminaire not found!\n",c);
                         }
-                        
+                        mtx.unlock();
                         break;
                     //DONE (Add correct function)
                     case 'r':
                         sscanf(data,"%c %c %d",&a, &b, &c);
                         std::cout << "Get current illuminance control reference at desk " << c<< ".\n";
+                        mtx.lock();
                         findID(c);
                         if(it != lista.end()){
                             sprintf(msg,"r %d %f\n",c, it->getControlRef().getValue());
                         } else {
                             sprintf(msg,"r %d luminaire not found!\n",c);
                         }
-                        
+                        mtx.unlock();
                         break;
                     //DONE (Add correct function)
                     case 'p':
                         if (data[4] == 'T') {
                             sum = 0.0;
                             std::cout << "Get instantaneous total power consumption in  system.\n";
+                            mtx.lock();
                             for (it = lista.begin(); it != lista.end(); ++it) {
                                 sum+=it->getDimming().getValue();
                             }
+                            mtx.unlock();
                             sprintf(msg,"p T %f\n",sum);
                         } else {
                             sscanf(data,"%c %c %d",&a, &b, &c);
                             std::cout << "Get instantaneous power consumption at desk " << c << ".\n";
+                            mtx.lock();
                             findID(c);
                             if(it != lista.end()){
                                 sprintf(msg,"p %d %f\n",c, it->getDimming().getValue());
                             } else {
                                 sprintf(msg,"p %d luminaire not found!\n",c);
                             }
-                            
+                            mtx.unlock();
                         }
                         break;
                     //DONE
@@ -199,22 +214,25 @@ class session {
                         if (data[4] == 'T') {
                             sum = 0.0;
                             std::cout << "Get total accumulated energy consumption since last system restart.\n";
+                            mtx.lock();
                             for (it = lista.begin(); it != lista.end(); ++it) {
                                 it->setEnergy();
                                 sum+=it->getEnergy();
                             }
+                            mtx.unlock();
                             sprintf(msg,"e T %f\n",sum);
                         } else {
                             sscanf(data,"%c %c %d",&a, &b, &c);
                             std::cout << "Get accumulated energy consumption at desk " << c << " since the last system restart.\n";
+                            mtx.lock();
                             findID(c);
                             if(it != lista.end()){
-                                it->setEnergy();
+                                
 								sprintf(msg,"e %d %f\n",c, it->getEnergy());
 							} else {
 								sprintf(msg,"e %d luminaire not found!\n",c);
 							}
-                            
+                            mtx.unlock();
                         }
                         break;
                     //DONE (Add correct function)
@@ -222,14 +240,17 @@ class session {
                         if (data[4] == 'T') {
                             sum = 0.0;
                             std::cout << "Get total comfort error since last system restart.\n";
+                            mtx.lock();
                             for (it = lista.begin(); it != lista.end(); ++it) {
                                 it->setConfortError();
                                 sum+=it->getConfortError();
                             }
+                            mtx.unlock();
                             sprintf(msg,"c T %f\n",sum);
                         } else {
                             sscanf(data,"%c %c %d",&a, &b, &c);
                             std::cout << "Get accumulated comfort error at desk " <<c << " since last system restart.\n";
+                            mtx.lock();
                             findID(c);
                             if(it != lista.end()){
                                 it->setConfortError();
@@ -237,7 +258,7 @@ class session {
                             } else {
                                 sprintf(msg,"c %d luminaire not found!\n",c);
                             }
-                            
+                            mtx.unlock();
                             
                         }
                         break;
@@ -247,14 +268,17 @@ class session {
                         if (data[4] == 'T') {
                             sum = 0.0;
                             std::cout << "Get total comfort flicker since last system restart.\n";
+                            mtx.lock();
                             for (it = lista.begin(); it != lista.end(); ++it) {
                                 it->setConfortFlicker();
                                 sum+=it->getConfortFlicker();
                             }
+                            mtx.unlock();
                             sprintf(msg,"v T %f\n",sum);
                         } else {
                             sscanf(data,"%c %c %d",&a, &b, &c);
                             std::cout << "Get accumulated comfort flicker at desk <i> since last system restart.\n";
+                            mtx.lock();
                             findID(c);
                             if(it != lista.end()){
                                 it->setConfortFlicker();
@@ -262,7 +286,7 @@ class session {
                             } else {
                                 sprintf(msg,"v %d luminaire not found!\n",c);
                             }
-                            
+                            mtx.unlock();
                         }
                         break;
                     default:
@@ -283,6 +307,7 @@ class session {
                 sscanf(data,"%c %c %d",&a, &b, &c);
                 std::cout << "Get last minute buffer of variable " << b << " of desk " << c << ".\n";
                 if (b == 'l') {
+                    mtx.lock();
                     findID(c);
                     if(it != lista.end()){
                         it->getLastLuminance(bbuffer);
@@ -290,8 +315,10 @@ class session {
                     } else {
                         sprintf(msg,"b %c %d not found\n",b ,c);
                     }
+                    mtx.unlock();
                     
                 } else if (b == 'd') {
+                    mtx.lock();
                     findID(c);
                     if(it != lista.end()){
                         it->getLastDimming(bbuffer);
@@ -300,8 +327,10 @@ class session {
                     } else {
                         sprintf(msg,"b %c %d not found\n",b ,c);
                     }
-                    sprintf(msg,"b %c isn't a valid command\n",b);
-                }
+                    mtx.unlock();
+                } else {
+					sprintf(msg,"b %c isn't a valid command\n",b);
+				}
                 
                 
                 
@@ -429,49 +458,86 @@ int starti2c(){
                     printf("MT_STATE from %d\n",xfer.rxBuf[0]);
                     if(xfer.rxCnt > 3){
                         findID((int)xfer.rxBuf[0]);
-                        it->setOccupancyState((bool)xfer.rxBuf[3]);
+                        findID(c);
+                        if(it != lista.end()){
+                            it->setOccupancyState((bool)xfer.rxBuf[3]);
+                        } else {
+                            printf("Luminaire %d not found!\n",(int)xfer.rxBuf[0]);
+                        }
+                        
                     }
                     break;
                 case MT_BRIGHTNESS:
                     printf("MT_BRIGHTNESS from %d\n",xfer.rxBuf[0]);
                     if(xfer.rxCnt > 5 && xfer.rxBuf[2]==4){
                         findID((int)xfer.rxBuf[0]);
-                        it->setDutyCicle(bytestofloat(xfer.rxBuf[3],xfer.rxBuf[4],xfer.rxBuf[5],xfer.rxBuf[6]));
+                        if(it != lista.end()){
+                            it->setDutyCicle(bytestofloat(xfer.rxBuf[3],xfer.rxBuf[4],xfer.rxBuf[5],xfer.rxBuf[6]));
+                        } else {
+                            printf("Luminaire %d not found!\n",(int)xfer.rxBuf[0]);
+                        }
+                        
                     }
                     break;
                 case MT_LUX:
-                    printf("MT_LUX from %d\n",xfer.rxBuf[0]);
+                    printf("MT_LUX from %d = %f\n",xfer.rxBuf[0],bytestofloat(xfer.rxBuf[3],xfer.rxBuf[4],xfer.rxBuf[5],xfer.rxBuf[6]));
                     if(xfer.rxCnt > 5 && xfer.rxBuf[2]==4){
                         findID((int)xfer.rxBuf[0]);
-                        it->setIluminance(bytestofloat(xfer.rxBuf[3],xfer.rxBuf[4],xfer.rxBuf[5],xfer.rxBuf[6]));
+                        if(it != lista.end()){
+                            it->setIluminance(bytestofloat(xfer.rxBuf[3],xfer.rxBuf[4],xfer.rxBuf[5],xfer.rxBuf[6]));
+                        } else {
+                            printf("Luminaire %d not found!\n",(int)xfer.rxBuf[0]);
+                        }
+                        
                     }
                     break;
                 case MT_LOWER_BOUND:
                     printf("MT_LOWER_BOUND from %d\n",xfer.rxBuf[0]);
                     if(xfer.rxCnt > 5 && xfer.rxBuf[2]==4){
                         findID((int)xfer.rxBuf[0]);
-                        it->setil_LowerBound(bytestofloat(xfer.rxBuf[3],xfer.rxBuf[4],xfer.rxBuf[5],xfer.rxBuf[6]));
+                        if(it != lista.end()){
+                            it->setil_LowerBound(bytestofloat(xfer.rxBuf[3],xfer.rxBuf[4],xfer.rxBuf[5],xfer.rxBuf[6]));
+                        } else {
+                            printf("Luminaire %d not found!\n",(int)xfer.rxBuf[0]);
+                        }
+                        
                     }
                     break;
                 case MT_EXTERNAL:
                     printf("MT_EXTERNAL from %d\n",xfer.rxBuf[0]);
                     if(xfer.rxCnt > 5 && xfer.rxBuf[2]==4){
                         findID((int)xfer.rxBuf[0]);
-                        it->setil_External(bytestofloat(xfer.rxBuf[3],xfer.rxBuf[4],xfer.rxBuf[5],xfer.rxBuf[6]));
+                        if(it != lista.end()){
+                            it->setil_External(bytestofloat(xfer.rxBuf[3],xfer.rxBuf[4],xfer.rxBuf[5],xfer.rxBuf[6]));
+                        } else {
+                            printf("Luminaire %d not found!\n",(int)xfer.rxBuf[0]);
+                        }
+                        
                     }
                     break;
                 case MT_CONTROLLER_REF:
                     printf("MT_CONTROLLER_REF from %d\n",xfer.rxBuf[0]);
                     if(xfer.rxCnt > 5 && xfer.rxBuf[2]==4){
                         findID((int)xfer.rxBuf[0]);
-                        it->setControlRef(bytestofloat(xfer.rxBuf[3],xfer.rxBuf[4],xfer.rxBuf[5],xfer.rxBuf[6]));
+                        if(it != lista.end()){
+                            it->setControlRef(bytestofloat(xfer.rxBuf[3],xfer.rxBuf[4],xfer.rxBuf[5],xfer.rxBuf[6]));
+                        } else {
+                            printf("Luminaire %d not found!\n",(int)xfer.rxBuf[0]);
+                        }
+                        
                     }
                     break;
                 case MT_DIMMING:
                     printf("MT_DIMMING from %d\n",xfer.rxBuf[0]);
                     if(xfer.rxCnt > 5 && xfer.rxBuf[2]==4){
                         findID((int)xfer.rxBuf[0]);
-                        it->setDimming(bytestofloat(xfer.rxBuf[3],xfer.rxBuf[4],xfer.rxBuf[5],xfer.rxBuf[6]));
+                        if(it != lista.end()){
+                            it->setDimming(bytestofloat(xfer.rxBuf[3],xfer.rxBuf[4],xfer.rxBuf[5],xfer.rxBuf[6]));
+                            it->setEnergy();
+                        } else {
+                            printf("Luminaire %d not found!\n",(int)xfer.rxBuf[0]);
+                        }
+                        
                     }
                     break;
                 case MT_REQUEST_FOR_CALIBRATION:
