@@ -423,6 +423,27 @@ void receiveData(int howMany) {
     f_calibration_need_to_light_led_on = false;
   }
 
+
+  if (header[1] == MT_STATE) {
+    while (Wire.available()) {
+      msg_float[msg_idx++] = Wire.read();
+    }
+    return;
+  }
+
+  if (header[1] == MT_BIGHTNESS) {
+    while (Wire.available()) {
+      msg_float[msg_idx++] = Wire.read();
+    }
+    return;
+  }
+
+  if (header[1] == MT_LUX) {
+    while (Wire.available()) {
+      msg_float[msg_idx++] = Wire.read();
+    }
+    return;
+  }
   if (header[1] == MT_CALIBRATION_VALUE) {
     // If on production, source address should be checked
     // Get the next 4 bytes - Getting the data from the other node.
