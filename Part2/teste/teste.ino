@@ -9,9 +9,7 @@
 // ALL RIGHTS RESERVED
 
 // ============================= CONTROL VARIABLES ============================
-// const float T = 0.002; // freq: 500 Hz
-const float T = 0.004; // freq: 250 Hz
-// const float T = 0.01; // freq: 100 Hz
+const float T = 0.01; // freq: 100 Hz
 // ============================= CONTROL VARIABLES ============================
 
 
@@ -49,10 +47,6 @@ float error_prev;
 
 
 
-
-
-
-
 // ============================== STATE VARIABLES =============================
 volatile bool occupied; // True if presence detected, False otherwise
 volatile int targetLux; // Changed according occupation and LOW_LUX or HIGH_LUX
@@ -67,7 +61,7 @@ const int lightSensor = A0;
 // ================================== PINOUT ==================================
 
 // ============================== GLOBAL SETTINGS =============================
-const int MAX_NODES = 3; // Defined the max number of nodes (neighbours)
+const int MAX_NODES = 2; // Defined the max number of nodes (neighbours)
 const int TIMEOUT = 2000; // ms
 const int CALIBRATION_LED_ON_TIME_MIN_TIME = 1000; //ms
 const int CALIBRATION_LED_ON_TIME = 3000; //ms
@@ -76,23 +70,31 @@ const int CALIBRATION_LDR_READS = 100;
 
 // =============================== NODE SETTINGS ==============================
 const byte address = 16;
-const int NodeIndex = 1; 
+const int NodeIndex = 1;
 // =============================== NODE SETTINGS ==============================
 
 volatile int current_neighbour_nodes = 0;
-volatile byte neighbour_nodes_addresses[MAX_NODES];
-volatile float consensus_K[2]; // TODO: Only working for 2 nodes!
-volatile float L;
-volatile float c = 1; 
-volatile float o = 0;    
+volatile byte neighbour_nodes_addresses[MAX_NODES]; // Holds I2C addresses only!
+volatile float consensus_K[MAX_NODES][MAX_NODES];
+
+volatile float L[MAX_NODES]; // maximum value for each node
+volatile float c[MAX_NODES]; // cost of each node
+volatile float o[MAX_NODES]; // external iluminance
+
 const float rho = 0.07;
+
 //node initialization     ONLY FOR 2 NODES
 volatile float d[2] = {0,0};
-volatile float d2[2] = {0,0};
 volatile float l[2] = {0,0};
 volatile float d_av[2] = {0,0};
 volatile float y[2] = {0,0};
 volatile struct node* n;
+volatile float d2[2] = {0,0};
+
+volatile byte current_consensus_iteration = 0;
+volatile byte last_consensus_iteration_data_recv = 0;
+
+
 
 // =================================== FLAGS ==================================
 volatile boolean f_send_network_full = false;
@@ -134,7 +136,12 @@ void setup() {
   current_neighbour_nodes = 0;
   for (int i = 0; i < MAX_NODES; i++) {
     neighbour_nodes_addresses[i] = 0;
+
+    L[i] = LOW_LUX;
+    c[i] = 0;
+    o[i] = 0;
   }
+
   updateconsensus = false;
   f_send_network_full = false;
   f_node_already_on_network = false;
@@ -150,12 +157,11 @@ void setup() {
   f_calibration_measure_ldr = false;
   k = 0;
   number_of_readings = 0;
+  current_consensus_iteration = 0;
+  last_consensus_iteration_data_recv = 0;
 
+  
   f_setup = true;
-
-
-  // inicialize variables for consensus
-  n = init_node(d, l, o, L, consensus_K, c, 2, NodeIndex, y, d_av);
 
   // ============================== TIMER CONTROL =============================
   // ==================== TIMER2 : Faster PWM on pin 3, 11 ====================
@@ -201,9 +207,7 @@ void setup() {
   // For 1024 prescaler, T = 64 us, f = 15.625 kHz
   // For 256 prescaler, T = 16 us, f = 62.5 kHz <---
 
-  // OCR1A = 124; // T = 2 ms | f = 500 Hz
-  OCR1A = 249; // T = 4 ms | f = 250 Hz
-  // OCR1A = 624; // T = 10 ms | f = 100 Hz
+  OCR1A = 624; // T = 10 ms | f = 100 Hz
 
   // ========================= TIMER1 : Feedback loop =========================
   // ============================== TIMER CONTROL =============================
@@ -217,10 +221,18 @@ void setup() {
   // Setup is complete, re-enable interrupts
   interrupts();
 
+  startI2C();
+
   analogWrite(luminaire, 0);
 
   // Attach the presence sensor to an interrupt
   attachInterrupt(digitalPinToInterrupt(presenceSensor), stateChange, CHANGE);
+
+  for (int i = 0; i < MAX_NODES; i++) {
+    for (int j = 0; j < MAX_NODES; j++) {
+      consensus_K[i][j] = 0;
+    } 
+  }
  
   // Check for initial state (occupied or not)
   stateChange();
@@ -231,7 +243,8 @@ void setup() {
   i_prev = 0;
   error_prev = 0;
 
-  startI2C();
+  f_calibration_mode = true;
+
   if (requestJoinNetwork()) {
     requestForCalibration();
   }
@@ -240,6 +253,7 @@ void setup() {
 }
 
 void loop() {
+
   // Send messages as needed
   if (f_send_network_full) {
     sendData(MT_MAX_NODES_IN_NETWORK_REACHED);
@@ -255,16 +269,17 @@ void loop() {
     calibrate();
   }
 
-  if (updateFeedback == true && f_calibration_mode == false) {
+  if (updateFeedback == true && f_calibration_mode == false && updateconsensus == false) {
     feedback();
+    sendValueFloat(MT_BIGHTNESS, (float) map(controlSignal,0,255,0,100)*1.0);
+    sendValueFloat(MT_LUX, getLDRLux());
     updateFeedback = false;
-    updateconsensus = true;
+
   }
-  
+
   if(updateconsensus == true && f_calibration_mode == false){
     dist_control();
     updateconsensus = false;
-    updateFeedback = true;
   }
 
   if (f_calibration_measure_ldr == true) {
@@ -272,56 +287,53 @@ void loop() {
       // Add time to get stable
       if (number_of_readings < CALIBRATION_LDR_READS) {
         k += getLDRLux();
-        // sendValueFloat(MT_CALIBRATION_VALUE, k);
         number_of_readings++;
       } else {
-        sendValueFloat(MT_CALIBRATION_VALUE, k/CALIBRATION_LDR_READS);
-        Serial.print("M");
-        Serial.println(k/CALIBRATION_LDR_READS);
-
-
+        if (NodeIndex == 0) {
+          // Got influence of node 1 in node 0
+          consensus_K[1][0] = k/CALIBRATION_LDR_READS;
+          
+        } else {
+          // Got influence of node 0 in node 1
+          consensus_K[0][1] = k/CALIBRATION_LDR_READS;
+        }
+        sendValueFloat(MT_CALIBRATION_VALUE_AFFECTED, k/CALIBRATION_LDR_READS);
         f_calibration_measure_ldr = false;
       }
     }
   }
 }
 
-
-
 void dist_control(){
 
+    // initialize variables for consensus
+    n = init_node(d, l, o[NodeIndex], L[NodeIndex], consensus_K[NodeIndex], c[NodeIndex], 2, NodeIndex, y, d_av);
     
-    // Aqui é a parte de iterações, não sei se preferem fazer com interrupts ou assim
-    // Acho que se iam fazendo de 10 a 10 iterações, ou seja, fazem 50 iterações entre eles, sabe o valor que cada LED deve ter e depois usa a parte 1 do projecto para o LED chegar
-    // ao valor pretendido. Depois lê a luminosidade externa e volta a fazer o mesmo a partir daqui
-    //iterations
-    Serial.println("U");
-    for (int i=2; i<=20; i++){
+    current_consensus_iteration = 2; // first iteration
+    last_consensus_iteration_data_recv = 1; // no data yet
 
-        // Faz consensus
-        consesus(n, 2);
-      
-       // Depois de fazer o consensus precisa de enviar para todos os outros nós o dimming level, d
-       sendValueFloat(DIMMING_VALUE1, n->d[0]);
-       sendValueFloat(DIMMING_VALUE2, n->d[1]);
+    for (byte i=2; i <= 50; i++){
+      current_consensus_iteration = i;
 
-       // Depois tem de receber os dimming level de todos os nós depois de eles também terem realizado o consensus
+      // 
+      while((current_consensus_iteration - last_consensus_iteration_data_recv) > 1) {}
 
-       receiveData(1);
-       receiveData(1);
-    
-        // Compute average with available data
-        float d_sum[2];
-        for (int j=0; j<2; j++){
-            d_sum[j]=n->d[j]+d2[j];
-        }
-
-
-        //node
-        final_values(n, d_sum, 2, rho);
+      // already received data for previous iteration
+      consensus(n, 2);
+      // Depois de fazer o consensus precisa de enviar para todos os outros nós o dimming level, d
+      sendDimingValuesConsensus(DIMMING_VALUE, n->d[0], n->d[1], i);
         
-
+      // Compute average with available data
+      float d_sum[2];
+      for (int j=0; j<2; j++){
+          d_sum[j]=n->d[j]+d2[j];
+      }
+  
+      final_values(n, d_sum, 2, rho);
     }
+    Serial.println("End consensus loop");
+
+    
 
     // No fim das iterações sabe que valor há de dar aos LEDS (usar o feedforward e feedback)
     float* d_final = n->d_av;
@@ -340,17 +352,26 @@ void dist_control(){
     }
     float prevision = l_final[NodeIndex];
     float l_FINAL=prevision+n->o;
-    targetLux = l_FINAL;
+
+    /*
+    if (l_FINAL < 0) {    
+      targetLux = 100;
+    } else {
+      targetLux = l_FINAL;    
+    }
+    */
+    
     Serial.println(targetLux);
+
     
     // Calculate external iluminance
     // d*K dá a previsão da iluminância sem acção externa
     n->o = getLDRLux()-prevision;
+
+  Serial.println("Start");
+
   
 }
-
-
-
 
 
 void calibrate() {
@@ -384,6 +405,7 @@ void calibrate() {
         }
       }
     }
+
   }
   
   // If I'm the next node to light up my LED...
@@ -396,11 +418,22 @@ void calibrate() {
       f_calibration_led_on = true;
       f_calibration_need_to_light_led_on = false;
     }
+
+    float sum_lux = 0;
+    int cnt = 0;
+    if (f_calibration_led_on == true) {
+      sum_lux += getLDRLux();
+      cnt++;
+    }
   
     if ((millis() - start_time_calibration_led_on > CALIBRATION_LED_ON_TIME) && f_calibration_led_on == true) {
+      consensus_K[NodeIndex][NodeIndex] = sum_lux / cnt;
+      sendValueFloat(MT_CALIBRATION_VALUE_OWN, (float)(sum_lux/cnt));
+
       // Turn off LED
       analogWrite(3, 0);
       sendData(MT_CALIBRATION_LED_OFF);
+
       f_calibration_led_on = false;
       f_calibration_next_light = false;
     }
@@ -421,6 +454,19 @@ void calibrate() {
   if (last_node == true && f_calibration_led_on == false && f_calibration_need_to_light_led_on == false) {
     // End calibration
     sendData(MT_END_CALIBRATION);
+
+
+ 
+  for (int i = 0; i < MAX_NODES; i++) {
+    for (int j = 0; j < MAX_NODES; j++) {
+      Serial.print(consensus_K[i][j]);
+      Serial.print(" ");
+    } 
+    Serial.print(" | ");
+  }
+  Serial.println();
+
+    
     f_calibration_mode = false;
     last_node_led_on = 0;
     f_calibration_mode = false;
@@ -445,11 +491,35 @@ void receiveData(int howMany) {
   byte header[3];
   int header_idx = 0;
   byte msg_float[4];
+  byte msg_diming[9];
+  byte msg_index;
   float msg_value_f;
+  float msg_value_f1, msg_value_f2;
   int msg_idx = 0;
 
-  while (Wire.available()) {
+  while (header_idx < 3) {
     header[header_idx++] = Wire.read();
+  }
+
+  if (header[1] == MT_STATE) {
+    while (Wire.available()) {
+      msg_float[msg_idx++] = Wire.read();
+    }
+    return;
+  }
+
+  if (header[1] == MT_BIGHTNESS) {
+    while (Wire.available()) {
+      msg_float[msg_idx++] = Wire.read();
+    }
+    return;
+  }
+
+  if (header[1] == MT_LUX) {
+    while (Wire.available()) {
+      msg_float[msg_idx++] = Wire.read();
+    }
+    return;
   }
 
   if (header[1] == MT_REQUEST_JOIN_NETWORK) {
@@ -483,6 +553,7 @@ void receiveData(int howMany) {
       f_in_network = true;
     } else {
       f_joined_network = false;
+      // Alone, first node
     }
     return;
   }
@@ -512,45 +583,67 @@ void receiveData(int howMany) {
     f_calibration_next_light = false;
     f_calibration_led_on = false;
     f_calibration_need_to_light_led_on = false;
+    updateconsensus = true;
+    
+  for (int i = 0; i < MAX_NODES; i++) {
+    for (int j = 0; j < MAX_NODES; j++) {
+      Serial.print(consensus_K[i][j]);
+      Serial.print(" ");
+    } 
+    Serial.print(" | ");
   }
-
-  if (header[1] == DIMMING_VALUE1) {
-    while (Wire.available()) {
-      msg_float[msg_idx++] = Wire.read();
-    }
-    float msg_value_f = bytestofloat( msg_float[0], msg_float[1], msg_float[2], msg_float[3]);
-    d2[0] = msg_value_f;
-  }
-
-  if (header[1] == DIMMING_VALUE2) {
-    while (Wire.available()) {
-      msg_float[msg_idx++] = Wire.read();
-    }
-    float msg_value_f = bytestofloat(msg_float[0],msg_float[1],msg_float[2], msg_float[3]);
-    d2[1] = msg_value_f;
-  }
+  Serial.println();
   
-  if (header[1] == MT_CALIBRATION_VALUE) {
+  }
+
+  if (header[1] == MT_CALIBRATION_VALUE_AFFECTED) {
     // If on production, source address should be checked
     // Get the next 4 bytes - Getting the data from the other node.
     while (Wire.available()) {
       msg_float[msg_idx++] = Wire.read();
     }
 
-    Serial.print(msg_float[0]);
-    Serial.print("--");
-    Serial.print(msg_float[1]);
-    Serial.print("--");
-    Serial.print(msg_float[2]);
-    Serial.print("--");
-    Serial.print(msg_float[3]);
-    Serial.print("--");
+    float msg_value_f = bytestofloat(msg_float[0],msg_float[1],msg_float[2],msg_float[3]);
+
+    // TODO: Only working for 2 nodes
+    if (NodeIndex == 0) {
+      // Received influence of node 0 on node 1
+      consensus_K[0][1] = msg_value_f;
+    } else {
+      // Received influence of node 1 on node 0
+      consensus_K[1][0] =  msg_value_f;
+    }
+  }
+
+  if (header[1] == MT_CALIBRATION_VALUE_OWN) {
+    // If on production, source address should be checked
+    // Get the next 4 bytes - Getting the data from the other node.
+    while (Wire.available()) {
+      msg_float[msg_idx++] = Wire.read();
+    }
 
     float msg_value_f = bytestofloat(msg_float[0],msg_float[1],msg_float[2],msg_float[3]);
-    
-  Serial.print("R");
-  Serial.println(msg_value_f);
-  consensus_K[1] =  msg_value_f;
+
+    // TODO: Only working for 2 nodes
+    if (NodeIndex == 0) {
+      // Received influence of node 1 on itself
+      consensus_K[1][1] = msg_value_f;
+    } else {
+      // Received influence of node 0 on itself
+      consensus_K[0][0] =  msg_value_f;
+    }
+  }
+
+  if (header[1] == DIMMING_VALUE) {
+    while (Wire.available()) {
+      msg_diming[msg_idx++] = Wire.read();
+    }
+       
+    float msg_value_f1 = bytestofloat(msg_float[0], msg_float[1], msg_float[2], msg_float[3]);
+    float msg_value_f2 = bytestofloat(msg_float[4], msg_float[5], msg_float[6], msg_float[7]);
+    d2[0] = msg_value_f1;
+    d2[1] = msg_value_f2;
+    last_consensus_iteration_data_recv = msg_float[8];
   }
 }
 
@@ -561,20 +654,61 @@ void sendData(byte type) {
   Wire.endTransmission();
 }
 
+void sendState(byte state) {
+/*
+  Wire.beginTransmission(0);
+  Wire.write(address);
+  Wire.write(MT_STATE);
+  Wire.write(1);
+  Wire.write(state);
+  Wire.endTransmission();
+*/
+}
+
 void sendValueFloat(byte type, float value) {
   Wire.beginTransmission(0);
   Wire.write(address);
   Wire.write(type);
   Wire.write(4);
   byte* data = (byte*)&value;
-  Wire.write(data, 4);
+
+  for (int i = 0; i < 4; i++) {
+    Wire.write(data[i]);
+  }  
+  Wire.endTransmission();
+}
+
+void sendDimingValuesConsensus(byte type, float value1, float value2, byte iteration) {
+  Wire.beginTransmission(0);
+  Wire.write(address);
+  Wire.write(type);
+  Wire.write(9);
+  byte* data1 = (byte*)&value1;
+  byte* data2 = (byte*)&value2;
+
+  for (int i = 0; i < 4; i++) {
+    Wire.write(data1[i]);
+  }
+  for (int i = 0; i < 4; i++) {
+    Wire.write(data2[i]);
+  }
+  Wire.write(iteration);
   Wire.endTransmission();
 }
 
 
+
+void sendValueByte(byte type, byte value) {
+  Wire.beginTransmission(0);
+  Wire.write(address);
+  Wire.write(type);
+  Wire.write(1); //size
+  Wire.write(value);
+  Wire.endTransmission();
+}
+
 // Returns False if no network found or network is full
 boolean requestJoinNetwork() {
-  // Serial.println("requestJoinNetwork");
   sendData(MT_REQUEST_JOIN_NETWORK);
   unsigned long start_time = millis();
   // Block for 2 secons (interrupts will be called)
@@ -584,7 +718,6 @@ boolean requestJoinNetwork() {
 
 
 void requestForCalibration() {
-  // Serial.println("requestForCalibration");
   f_calibration_mode = true;
   f_calibration_need_to_light_led_on = true;
   last_node_led_on = 0;
@@ -687,15 +820,23 @@ void stateChange() {
 
   // Update target lux value
   if (occupied == true) {
-    L = HIGH_LUX;
-  } else {
-    L = LOW_LUX;
+    for (int i = 0; i < MAX_NODES; i++) {
+      L[i] = HIGH_LUX;
+    }
+    targetLux = HIGH_LUX;
+  } else {    
+    for (int i = 0; i < MAX_NODES; i++) {
+      L[i] = LOW_LUX;
+    }
+    targetLux = LOW_LUX;
   }
-
+  
   // Update system directly
   if (f_calibration_mode == false && f_setup == false) {
     feedforward();
   }
+
+  sendState(occupied); 
 
 }
 
@@ -777,20 +918,22 @@ ISR(TIMER1_COMPA_vect) {
   updateFeedback = true;
 }
 
-float bytestofloat(unsigned char a,unsigned char b,unsigned char c,unsigned char d){
+float bytestofloat(byte a, byte b, byte c, byte d) {
+
   float output;
+
   *((unsigned char*)(&output) + 3) = d;
   *((unsigned char*)(&output) + 2) = c;
   *((unsigned char*)(&output) + 1) = b;
   *((unsigned char*)(&output) + 0) = a;
-  
   return output;
+
+  // return data.asFloat;
 }
 
-void consesus(struct node* n, int number_nodes){
+void consensus(struct node* n, int number_nodes){
 
     // node
-    float rho = 0.07; 
     float d[number_nodes];
     
     primal_solve(n, rho, number_nodes, d);
@@ -815,9 +958,6 @@ void final_values(struct node* n, float* d_sum, int number_nodes, float rho){
         n->y[j] = n->y[j] + rho*(n->d[j]-n->d_av[j]);
     }
 }
-
-
-
 
 float check_feasibility(struct node* n, float* d, int number_nodes){
     float check;
