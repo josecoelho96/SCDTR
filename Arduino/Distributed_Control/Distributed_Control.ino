@@ -228,6 +228,8 @@ void loop() {
 
   if (updateFeedback == true && f_calibration_mode == false) {
     feedback();
+    sendValueFloat(5, (float) map(controlSignal,0,255,0,100)*1.0);
+    sendValueFloat(6, getLDRLux());
     updateFeedback = false;
   }
 
@@ -410,6 +412,27 @@ void receiveData(int howMany) {
     f_calibration_need_to_light_led_on = false;
   }
 
+
+  if (header[1] == MT_STATE) {
+    while (Wire.available()) {
+      msg_float[msg_idx++] = Wire.read();
+    }
+    return;
+  }
+
+  if (header[1] == MT_BIGHTNESS) {
+    while (Wire.available()) {
+      msg_float[msg_idx++] = Wire.read();
+    }
+    return;
+  }
+
+  if (header[1] == MT_LUX) {
+    while (Wire.available()) {
+      msg_float[msg_idx++] = Wire.read();
+    }
+    return;
+  }
   if (header[1] == MT_CALIBRATION_VALUE) {
     // If on production, source address should be checked
     // Get the next 4 bytes - Getting the data from the other node.
@@ -444,6 +467,14 @@ void sendData(byte type) {
   Wire.endTransmission();
 }
 
+void sendState(byte state) {
+  Wire.beginTransmission(0);
+  Wire.write(address);
+  Wire.write(4);
+  Wire.write(1);
+  Wire.write(state);
+  Wire.endTransmission();
+}
 void sendValueFloat(byte type, float value) {
   Wire.beginTransmission(0);
   Wire.write(address);
@@ -579,7 +610,7 @@ void stateChange() {
   if (f_calibration_mode == false && f_setup == false) {
     feedforward();
   }
-
+  sendState(occupied);
 }
 
 void feedforward(){

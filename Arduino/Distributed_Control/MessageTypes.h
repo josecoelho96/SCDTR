@@ -12,6 +12,9 @@ const byte MT_CALIBRATION_LED_ON = 11;
 const byte MT_CALIBRATION_LED_OFF = 12;
 const byte MT_END_CALIBRATION = 13;
 const byte MT_CALIBRATION_VALUE = 14;
+const byte MT_STATE = 4;
+const byte MT_BIGHTNESS = 5;
+const byte MT_LUX = 6;
 
 const byte MT_REQUEST_JOIN_NETWORK = 20;
 const byte MT_REQUEST_JOIN_NETWORK_REPLY_OK = 21;
