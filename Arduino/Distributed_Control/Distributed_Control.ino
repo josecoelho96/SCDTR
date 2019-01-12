@@ -239,6 +239,8 @@ void loop() {
 
   if (updateFeedback == true && f_calibration_mode == false) {
     feedback();
+    sendValueFloat(5, (float) map(controlSignal,0,255,0,100)*1.0);
+    sendValueFloat(6, getLDRLux());
     updateFeedback = false;
   }
   
@@ -455,6 +457,14 @@ void sendData(byte type) {
   Wire.endTransmission();
 }
 
+void sendState(byte state) {
+  Wire.beginTransmission(0);
+  Wire.write(address);
+  Wire.write(4);
+  Wire.write(1);
+  Wire.write(state);
+  Wire.endTransmission();
+}
 void sendValueFloat(byte type, float value) {
   Wire.beginTransmission(0);
   Wire.write(address);
@@ -590,7 +600,7 @@ void stateChange() {
   if (f_calibration_mode == false && f_setup == false) {
     feedforward();
   }
-
+  sendState(occupied);
 }
 
 void feedforward(){
