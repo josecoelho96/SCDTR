@@ -542,6 +542,11 @@ int starti2c(){
                         printf("MT_DIMMING from %d %f %f\n",xfer.rxBuf[0],bytestofloat(xfer.rxBuf[3],xfer.rxBuf[4],xfer.rxBuf[5],xfer.rxBuf[6]),bytestofloat(xfer.rxBuf[7],xfer.rxBuf[8],xfer.rxBuf[9],xfer.rxBuf[10]));
                         
                     }
+                    
+                    if (xfer.rxCnt > 5 && xfer.rxBuf[2]==9) {
+                        printf("MT_DIMMING from %d %d %f %f\n",xfer.rxBuf[0],xfer.rxBuf[11],bytestofloat(xfer.rxBuf[3],xfer.rxBuf[4],xfer.rxBuf[5],xfer.rxBuf[6]),bytestofloat(xfer.rxBuf[7],xfer.rxBuf[8],xfer.rxBuf[9],xfer.rxBuf[10]));
+                        
+                    }
                     if(xfer.rxCnt > 5 && xfer.rxBuf[2]==4){
                         printf("MT_DIMMING from %d\n",xfer.rxBuf[0]);
                         findID((int)xfer.rxBuf[0]);
