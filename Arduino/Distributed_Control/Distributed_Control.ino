@@ -8,9 +8,7 @@
 // ALL RIGHTS RESERVED
 
 // ============================= CONTROL VARIABLES ============================
-// const float T = 0.002; // freq: 500 Hz
-const float T = 0.004; // freq: 250 Hz
-// const float T = 0.01; // freq: 100 Hz
+const float T = 0.01; // freq: 100 Hz
 // ============================= CONTROL VARIABLES ============================
 
 
@@ -45,11 +43,6 @@ float i;
 float i_prev;
 float error_prev;
 // ============================= SYSTEM PARAMETERS ============================
-
-
-
-
-
 
 
 // ============================== STATE VARIABLES =============================
@@ -126,7 +119,6 @@ void setup() {
   f_send_joined_network = false;
   f_joined_network = false;
   f_in_network = false;
-  
   last_node_led_on = 0;
   f_calibration_mode = false;
   f_calibration_next_light = false;
@@ -182,10 +174,7 @@ void setup() {
   // f_interrupt = 16MHz /((OCR+1)*prescaler) = f_scaled/(OCR+1)
   // For 1024 prescaler, T = 64 us, f = 15.625 kHz
   // For 256 prescaler, T = 16 us, f = 62.5 kHz <---
-
-  // OCR1A = 124; // T = 2 ms | f = 500 Hz
-  OCR1A = 249; // T = 4 ms | f = 250 Hz
-  // OCR1A = 624; // T = 10 ms | f = 100 Hz
+  OCR1A = 624; // T = 10 ms | f = 100 Hz
 
   // ========================= TIMER1 : Feedback loop =========================
   // ============================== TIMER CONTROL =============================
@@ -203,7 +192,7 @@ void setup() {
 
   // Attach the presence sensor to an interrupt
   attachInterrupt(digitalPinToInterrupt(presenceSensor), stateChange, CHANGE);
- 
+
   // Check for initial state (occupied or not)
   stateChange();
   updateFeedback = false;
@@ -241,7 +230,7 @@ void loop() {
     feedback();
     updateFeedback = false;
   }
-  
+
   if (f_calibration_measure_ldr == true) {
     if (millis() - start_time_calibration_led_on_min_time > CALIBRATION_LED_ON_TIME_MIN_TIME) {
       // Add time to get stable
@@ -281,19 +270,19 @@ void calibrate() {
     f_calibration_next_light = true; // assume I'm the next node
     for (int i = 0; i < MAX_NODES; i++) {
       if (neighbour_nodes_addresses[i] != 0) {
-        // Ignore all neighbours with lower addresses than the last one who sent a LED OFF          
+        // Ignore all neighbours with lower addresses than the last one who sent a LED OFF
         if (last_node_led_on >= neighbour_nodes_addresses[i]) {
           continue;
         }
         // Other node as a lower but valid value
-        if (neighbour_nodes_addresses[i] < address) { 
+        if (neighbour_nodes_addresses[i] < address) {
           f_calibration_next_light = false;
           break;
         }
       }
     }
   }
-  
+
   // If I'm the next node to light up my LED...
   if (f_calibration_next_light == true) {
     if (f_calibration_led_on == false && f_calibration_need_to_light_led_on == true) {
@@ -304,7 +293,7 @@ void calibrate() {
       f_calibration_led_on = true;
       f_calibration_need_to_light_led_on = false;
     }
-  
+
     if ((millis() - start_time_calibration_led_on > CALIBRATION_LED_ON_TIME) && f_calibration_led_on == true) {
       // Turn off LED
       analogWrite(3, 0);
@@ -313,13 +302,13 @@ void calibrate() {
       f_calibration_next_light = false;
     }
   }
-  
+
   // If I have the highest of all addresses and don't need to light my led on and have my led off, send a end calibration message
   boolean last_node = true;
   for (int i = 0; i < MAX_NODES; i++) {
     if (neighbour_nodes_addresses[i] != 0) {
-      // Ignore all neighbours with lower addresses than the last one who sent a LED OFF          
-      if (neighbour_nodes_addresses[i] > address) { 
+      // Ignore all neighbours with lower addresses than the last one who sent a LED OFF
+      if (neighbour_nodes_addresses[i] > address) {
         last_node = false;
         break;
       }
@@ -355,7 +344,7 @@ void receiveData(int howMany) {
   float msg_value_f;
   int msg_idx = 0;
 
-  while (Wire.available()) {
+  while (header_idx < 3) {
     header[header_idx++] = Wire.read();
   }
 
